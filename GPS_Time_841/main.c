@@ -41,3 +41,7 @@ int main(void)
     }
 }
 
+ISR(TIMER1_COMPA_vect) {
+
+	// occurs when TCNT1 matches OCR1A
+}
