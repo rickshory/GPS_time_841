@@ -6,11 +6,23 @@
  */ 
 
 #define F_CPU 8000000UL
+#define CT_100MS 12500
+#define TOGGLE_INTERVAL 10
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <string.h>
 #include <avr/sleep.h>
+
+//volatile uint8_t machineState;
+//volatile uint8_t iTmp;
+volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
+volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
+//volatile uint16_t btCountdown = 0; // timer for trying Bluetooth connection
+//volatile uint16_t timer3val;
+
+//volatile uint8_t Timer1, Timer2, intTmp1;	// 10Hz decrement timer
 
 //pins by package
 //    PDIP QFN     used for programming
@@ -31,10 +43,14 @@
 
 int main(void)
 {
+	
+	// set up to blink an LED
+	DDRA |= (1<<LED);
+
 	// set up a heartbeat counter, interrupt every 0.1 second
 	// set up 16-bit TIMER1
 	// F_CPU = 8MHz
-	OCR1A = 12500; // 0.1 sec; use prescaler 64
+	OCR1A = CT_100MS; // 0.1 sec; use prescaler 64
 	// only channel A will cause CTC
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
@@ -103,19 +119,52 @@ int main(void)
 	TIMSK0 |= (1<<OCIE1A);
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR1 |= (1<<OCF1A);
-	
-	// set up to blink an LED	
-	DDRA |= (1<<LED);
+
     while (1) 
     {	
+/*
 		_delay_ms(1000);
 		PORTA |= (1<<LED); // set high
 		_delay_ms(1000);
 		PORTA &= ~(1<<LED); // set low
+		*/
     }
 }
 
 ISR(TIMER1_COMPA_vect) {
-
 	// occurs when TCNT1 matches OCR1A
+	// set to occur at 10Hz
+//	char n;
+//	int16_t t;
+	if (--ToggleCountdown <= 0) {
+		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
+		ToggleCountdown = TOGGLE_INTERVAL;
+	}
+	
+	/*
+	
+	if (btCountdown > rouseCountdown)
+	rouseCountdown = btCountdown; // stay roused at least as long as trying to get a BT connection
+
+	t = btCountdown;
+	if (t) btCountdown = --t;
+	if (!btCountdown)
+	{
+		BT_power_off();
+	}
+	
+	t = rouseCountdown;
+	if (t) rouseCountdown = --t;
+	
+	//	if (--rouseCountdown <= 0)
+	if (!rouseCountdown)
+	{
+		stateFlags1 &= ~(1<<isRoused);
+	}
+
+	n = Timer1;						// 10Hz decrement timer 
+	if (n) Timer1 = --n;
+	n = Timer2;
+	if (n) Timer2 = --n;
+*/
 }
