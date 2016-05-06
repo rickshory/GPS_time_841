@@ -116,9 +116,10 @@ int main(void)
 	// set the counter to zero
 	TCNT1 = 0;
 	// enable Output Compare 1A interrupt
-	TIMSK0 |= (1<<OCIE1A);
+	TIMSK1 |= (1<<OCIE1A);
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR1 |= (1<<OCF1A);
+	sei();
 
     while (1) 
     {	
