@@ -15,14 +15,41 @@
 #include <string.h>
 #include <avr/sleep.h>
 
-//volatile uint8_t machineState;
+// function prototypes
+void stayRoused(uint16_t dSec);
+void endRouse(void);
+
+enum machStates
+{
+	Asleep = 0,
+	Idle,  // done with work but not yet allowed to go to sleep
+	WakedFromSleep, // first test on wake from sleep
+	TimerInitialized, // Timer1 has been initialized
+	PoweredOnGPS, // the GPS has been powered on
+	SerialRxFromGPS, // Serial data has been received from the GPS
+	ValidNMEARxFromGPS, // Valid NMEA data has been received from the GPS
+	ValidTimeRxFromGPS, // Valid timestamp has been received from the GPS
+	PoweredOffGPS // the GPS has been powered off
+};
+
+enum stateFlagsBits
+{
+	isRoused, // triggered by external interrupt, and re-triggered by any activity while awake
+	reRoused, // re-triggered while awake, used to reset timeout
+	isGPSPowerOn, // is the GPS powered on
+	isSerialRxFromGPS, // has some serial data been received from the GPS
+	isValid_NMEA_RxFromGPS, // has some valid NMEA data been received from the GPS
+	isValidTimeRxFromGPS, // has a valid Timestamp been received from the GPS
+	sfBit6, // unused
+	sfBit7 // unused
+};
+
+volatile uint8_t machineState;
+volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
-//volatile uint16_t btCountdown = 0; // timer for trying Bluetooth connection
-//volatile uint16_t timer3val;
-
-//volatile uint8_t Timer1, Timer2, intTmp1;	// 10Hz decrement timer
+volatile uint8_t Timer1, Timer2, Timer3;	// 10Hz decrement timer
 
 //pins by package
 //    PDIP QFN     used for programming
@@ -120,52 +147,90 @@ int main(void)
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR1 |= (1<<OCF1A);
 	sei();
+	
+	stayRoused(100); // stay roused for 10 seconds
 
     while (1) 
-    {	
-/*
-		_delay_ms(1000);
-		PORTA |= (1<<LED); // set high
-		_delay_ms(1000);
-		PORTA &= ~(1<<LED); // set low
-		*/
+    {
+		if (!(stateFlags & (1<<isRoused))) {
+			// go to sleep
+			PORTA &= ~(1<<LED); // turn off pilot light blinkey
+			// To enter a sleep mode, the SE bit in MCUCR must be set and 
+			// a SLEEP instruction must be executed. The SMn bits in
+			// MCUCR select which sleep mode will be activated by 
+			// the SLEEP instruction.
+			
+			// MCUCR – MCU Control Register
+			// (7, 6, 2 reserved)
+			// 5 - SE: Sleep Enable
+			// 4:3 – SM[1:0]: Sleep Mode Select Bits 1 and 0
+			//       SM[1:0]=(10) for Power-down
+			// 1:0 – ISC0[1:0]: Interrupt Sense Control 0 Bit 1 and Bit 0
+			// ISC01 ISC00 Description
+			//   0     0    The low level of INT0 generates an interrupt request
+			//   0     1    Any logical change on INT0 generates an interrupt request
+			//   1     0    The falling edge of INT0 generates an interrupt request
+			//   1     1    The rising edge of INT0 generates an interrupt request
+			//           try any-logic-change
+			// don't set SE yet
+			MCUCR = 0b00010001;
+			// set SE (sleep enable)
+			MCUCR |= (1<<SE);
+			// go intoPower-down mode SLEEP
+			asm("sleep");
+		}
     }
 }
+
+void stayRoused(uint16_t dSec)
+{
+	cli(); // temporarily disable interrupts to prevent Timer1 from
+	// changing the count partway through
+	if ((dSec) > rouseCountdown) { // never trim the rouse interval, only extend it
+		rouseCountdown = dSec;
+	}
+	stateFlags |= (1<<isRoused);
+	PORTA |= (1<<LED); // set pilot light on
+	sei();
+}
+
+void endRouse(void) {
+	cli(); // temporarily disable interrupts to prevent Timer1 from
+	// changing the count partway through
+	rouseCountdown = 0;
+	stateFlags &= ~(1<<isRoused);
+	PORTA &= ~(1<<LED); // force pilot light off
+	sei();
+	
+}
+
+
 
 ISR(TIMER1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
 	// set to occur at 10Hz
-//	char n;
-//	int16_t t;
+	char n;
+	int16_t t;
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
 	}
 	
-	/*
-	
-	if (btCountdown > rouseCountdown)
-	rouseCountdown = btCountdown; // stay roused at least as long as trying to get a BT connection
 
-	t = btCountdown;
-	if (t) btCountdown = --t;
-	if (!btCountdown)
-	{
-		BT_power_off();
-	}
-	
 	t = rouseCountdown;
 	if (t) rouseCountdown = --t;
 	
 	//	if (--rouseCountdown <= 0)
 	if (!rouseCountdown)
 	{
-		stateFlags1 &= ~(1<<isRoused);
+		stateFlags &= ~(1<<isRoused);
 	}
 
 	n = Timer1;						// 10Hz decrement timer 
 	if (n) Timer1 = --n;
 	n = Timer2;
 	if (n) Timer2 = --n;
-*/
+	n = Timer3;
+	if (n) Timer3 = --n;
+
 }
