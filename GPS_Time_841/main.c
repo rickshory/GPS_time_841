@@ -6,8 +6,8 @@
  */ 
 
 #define F_CPU 8000000UL
-#define CT_100MS 12500
-#define TOGGLE_INTERVAL 10
+#define CT_10MS 1250
+#define TOGGLE_INTERVAL 100
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -49,7 +49,7 @@ volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
-volatile uint8_t Timer1, Timer2, Timer3;	// 10Hz decrement timer
+volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
 //pins by package
 //    PDIP QFN     used for programming
@@ -77,7 +77,7 @@ int main(void)
 	// set up a heartbeat counter, interrupt every 0.1 second
 	// set up 16-bit TIMER1
 	// F_CPU = 8MHz
-	OCR1A = CT_100MS; // 0.1 sec; use prescaler 64
+	OCR1A = CT_10MS; // 0.01 sec; use prescaler 64
 	// only channel A will cause CTC
 
 	// note that WGM1[3:0] is split over TCCR1A and TCCR1B
@@ -148,7 +148,7 @@ int main(void)
 	TIFR1 |= (1<<OCF1A);
 	sei();
 	
-	stayRoused(100); // stay roused for 10 seconds
+	stayRoused(1000); // stay roused for 10 seconds
 
     while (1) 
     {
@@ -208,7 +208,7 @@ void endRouse(void) {
 
 ISR(TIMER1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
-	// set to occur at 10Hz
+	// set to occur at 100Hz
 	char n;
 	int16_t t;
 	if (--ToggleCountdown <= 0) {
@@ -226,7 +226,7 @@ ISR(TIMER1_COMPA_vect) {
 		stateFlags &= ~(1<<isRoused);
 	}
 
-	n = Timer1;						// 10Hz decrement timer 
+	n = Timer1;						// 100Hz decrement timer 
 	if (n) Timer1 = --n;
 	n = Timer2;
 	if (n) Timer2 = --n;
