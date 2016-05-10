@@ -146,6 +146,35 @@ int main(void)
 	TIMSK1 |= (1<<OCIE1A);
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR1 |= (1<<OCF1A);
+	
+	// set up the external interrupt INT0
+	// and power-down sleep enable
+	// clear interrupt flag; probably don't need to do this because flag is cleared on level interrupts
+	GIFR |= (1<<INTF0);
+	// To enter a sleep mode, the SE bit in MCUCR must be set and
+	// a SLEEP instruction must be executed. The SMn bits in
+	// MCUCR select which sleep mode will be activated by
+	// the SLEEP instruction.
+			
+	// MCUCR – MCU Control Register
+	// (7, 6, 2 reserved)
+	// 5 - SE: Sleep Enable
+	// 4:3 – SM[1:0]: Sleep Mode Select Bits 1 and 0
+	//       SM[1:0]=(10) for Power-down
+	// 1:0 – ISC0[1:0]: Interrupt Sense Control 0 Bit 1 and Bit 0
+	// ISC01 ISC00 Description
+	//   0     0    The low level of INT0 generates an interrupt request
+	//   0     1    Any logical change on INT0 generates an interrupt request
+	//   1     0    The falling edge of INT0 generates an interrupt request
+	//   1     1    The rising edge of INT0 generates an interrupt request
+	//           try any-logic-change
+	// don't set SE yet
+	// Configure INT0 to trigger on rising edge
+	MCUCR = 0b00010011;
+	// Enable the INT0 interrupt
+	GIMSK |= (1<<6);
+	// set the global interrupt enable bit.
+	
 	sei();
 	
 	stayRoused(1000); // stay roused for 10 seconds
@@ -172,8 +201,6 @@ int main(void)
 			//   1     0    The falling edge of INT0 generates an interrupt request
 			//   1     1    The rising edge of INT0 generates an interrupt request
 			//           try any-logic-change
-			// don't set SE yet
-			MCUCR = 0b00010001;
 			// set SE (sleep enable)
 			MCUCR |= (1<<SE);
 			// go intoPower-down mode SLEEP
