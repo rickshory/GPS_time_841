@@ -261,3 +261,8 @@ ISR(TIMER1_COMPA_vect) {
 	if (n) Timer3 = --n;
 
 }
+
+ISR(INT0_vect) {
+	// this wakes system from sleep
+	stayRoused(1000); // stay roused for 10 seconds
+}
