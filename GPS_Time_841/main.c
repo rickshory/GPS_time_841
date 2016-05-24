@@ -194,7 +194,8 @@ int main(void)
 			//   0     1    Any logical change on INT0 generates an interrupt request
 			//   1     0    The falling edge of INT0 generates an interrupt request
 			//   1     1    The rising edge of INT0 generates an interrupt request
-			//           try any-logic-change
+			
+			PRR = 0xff;
 			// set SE (sleep enable)
 			MCUCR |= (1<<SE);
 			// go intoPower-down mode SLEEP
