@@ -8,6 +8,8 @@
 #define F_CPU 8000000UL
 #define CT_10MS 1250
 #define TOGGLE_INTERVAL 100
+#define GPS_TX_BAUD 4800
+#define UC_RX_BAUD 9600
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -44,7 +46,7 @@ enum stateFlagsBits
 	sfBit7 // unused
 };
 
-volatile uint8_t machineState;
+volatile uint8_t machineState, GpsOnAttempts = 0, GpsOffAttempts = 0;
 volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
@@ -70,7 +72,9 @@ volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
 int main(void)
 {
-	
+	uint16_t GpsTxUbrr = 103; // (F_CPU/(16 * GPS_TX_BAUD))-1 for GPS Tx at 4800 baud
+	uint16_t UcRxUbrr = 51; // (F_CPU/(16 * UC_RX_BAUD))-1 for main uC Rx at 9600 baud
+
 	// set up to blink an LED
 	DDRA |= (1<<LED);
 
@@ -138,6 +142,50 @@ int main(void)
 	// 2 OCIE1B: Timer/Counter1 Output Compare Match B Interrupt Enable (not used here)
 	// 1 OCIE1A: Timer/Counter1 Output Compare Match A Interrupt Enable
 	// 0 TOIE1: Timer/Counter1, Overflow Interrupt Enable (not used here)
+	
+	// Set up USARTS
+	// make sure enabled, no power reductions for USARTS
+	// PRR – Power Reduction Register
+	// 7 – PRTWI: Power Reduction Two-Wire Interface
+	// 6 – PRUSART1: Power Reduction USART1
+	// 5 – PRUSART0: Power Reduction USART0
+	// 4 – PRSPI: Power Reduction SPI
+	// 3 – PRTIM2: Power Reduction Timer/Counter2
+	// 2 – PRTIM1: Power Reduction Timer/Counter1
+	// 1 – PRTIM0: Power Reduction Timer/Counter0
+	// 0 – PRADC: Power Reduction ADC
+	
+	// setting bits=0 assures power reduction is OFF
+	PRR &= ~((1<<PRUSART1) | (1<<PRUSART0));
+	
+	// UCSRnC– USART Control and Status Register C
+	// 7:6 use default (00)= Asynchronous USART
+	// 5:4 use default (00)= Parity disabled
+	// 3 use default, 0= 1 stop bit
+	// 2:1 – UCSZn[1:0]: Character Size, 
+	//       Together with the UCSZn2 bit, the UCSZn[1:0] bits set the number of data bits
+	// 2:1 use (11)= 8-bit character size (use default UCSRnB[UCSZn2]= 0)
+	// 0 use default 0, Clock Polarity, don't care, not used by Asynchronous USART
+	
+	// Set USART0 to receive the GPS Tx
+	// set USART0 baud rate
+	UBRR0H = (unsigned char)(GpsTxUbrr>>8);
+	UBRR0L = (unsigned char)GpsTxUbrr;
+	// set USART0 to receive
+	// UCSR0A, use defaults
+	UCSR0B = (1<<RXEN0); // use defaults except for this
+	// set USART0 frame format: 8data, 1stop bit
+	UCSR0C = (3<<UCSZ00);
+	
+	// Set USART1 to transmit to the main uC Rx
+	// set USART1 baud rate
+	UBRR1H = (unsigned char)(UcRxUbrr>>8);
+	UBRR1L = (unsigned char)UcRxUbrr;
+	// set USART1 to transmit
+	// UCSR1A, use defaults
+	UCSR1B = (1<<TXEN1); // use defaults except for this
+	// set USART1 frame format: 8data, 1stop bit
+	UCSR1C = (3<<UCSZ10);
 
 	cli(); // temporarily disable interrupts
 	// set the counter to zero
@@ -147,27 +195,10 @@ int main(void)
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR1 |= (1<<OCF1A);
 	
-	// power-down sleep enable
 	// clear interrupt flag; probably don't need to do this because flag is cleared on level interrupts
 	GIFR |= (1<<INTF0);
-	// To enter a sleep mode, the SE bit in MCUCR must be set and
-	// a SLEEP instruction must be executed. The SMn bits in
-	// MCUCR select which sleep mode will be activated by
-	// the SLEEP instruction.
-			
-	// MCUCR – MCU Control Register
-	// (7, 6, 2 reserved)
-	// 5 - SE: Sleep Enable
-	// 4:3 – SM[1:0]: Sleep Mode Select Bits 1 and 0
-	//       SM[1:0]=(10) for Power-down
-	// 1:0 – ISC0[1:0]: Interrupt Sense Control 0 Bit 1 and Bit 0
-	// ISC01 ISC00 Description
-	//   0     0    The low level of INT0 generates an interrupt request
-	//   0     1    Any logical change on INT0 generates an interrupt request
-	//   1     0    The falling edge of INT0 generates an interrupt request
-	//   1     1    The rising edge of INT0 generates an interrupt request
 
-	// don't set Power-down mode or SE yet
+	
 	// set the global interrupt enable bit.
 	sei();
 	
