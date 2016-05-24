@@ -34,7 +34,7 @@ enum machStates
 
 enum stateFlagsBits
 {
-	isRoused, // triggered by external interrupt, and re-triggered by any activity while awake
+	isRoused, // triggered by initiating Reset, and re-triggered by any activity while awake
 	reRoused, // re-triggered while awake, used to reset timeout
 	isGPSPowerOn, // is the GPS powered on
 	isSerialRxFromGPS, // has some serial data been received from the GPS
@@ -147,8 +147,7 @@ int main(void)
 	// clear the interrupt flag, write a 1 to the bit location
 	TIFR1 |= (1<<OCF1A);
 	
-	// set up the external interrupt INT0
-	// and power-down sleep enable
+	// power-down sleep enable
 	// clear interrupt flag; probably don't need to do this because flag is cleared on level interrupts
 	GIFR |= (1<<INTF0);
 	// To enter a sleep mode, the SE bit in MCUCR must be set and
@@ -169,12 +168,7 @@ int main(void)
 	//   1     1    The rising edge of INT0 generates an interrupt request
 	//           try any-logic-change
 	// don't set SE yet
-	// Configure INT0 to trigger on rising edge
-	MCUCR = 0b00010011;
-	// Enable the INT0 interrupt
-	GIMSK |= (1<<6);
 	// set the global interrupt enable bit.
-	
 	sei();
 	
 	stayRoused(1000); // stay roused for 10 seconds
@@ -231,8 +225,6 @@ void endRouse(void) {
 	
 }
 
-
-
 ISR(TIMER1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
 	// set to occur at 100Hz
@@ -260,9 +252,4 @@ ISR(TIMER1_COMPA_vect) {
 	n = Timer3;
 	if (n) Timer3 = --n;
 
-}
-
-ISR(INT0_vect) {
-	// this wakes system from sleep
-	stayRoused(1000); // stay roused for 10 seconds
 }
