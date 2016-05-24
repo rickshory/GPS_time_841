@@ -166,8 +166,8 @@ int main(void)
 	//   0     1    Any logical change on INT0 generates an interrupt request
 	//   1     0    The falling edge of INT0 generates an interrupt request
 	//   1     1    The rising edge of INT0 generates an interrupt request
-	//           try any-logic-change
-	// don't set SE yet
+
+	// don't set Power-down mode or SE yet
 	// set the global interrupt enable bit.
 	sei();
 	
@@ -178,6 +178,27 @@ int main(void)
 		if (!(stateFlags & (1<<isRoused))) {
 			// go to sleep
 			PORTA &= ~(1<<LED); // turn off pilot light blinkey
+			
+			// before setting PRADC (PRR[0], below) assure ADC is disabled
+			// may not be necessary, if ADC never enabled, but assures lowest power
+			// ADCSRA – ADC Control and Status Register A
+			// 7 - ADEN: ADC Enable. Writing this bit to zero turns off the ADC
+			ADCSRA &= ~(1<<ADEN);
+			
+			// PRR – Power Reduction Register
+			// 7 – PRTWI: Power Reduction Two-Wire Interface
+			// 6 – PRUSART1: Power Reduction USART1
+			// 5 – PRUSART0: Power Reduction USART0
+			// 4 – PRSPI: Power Reduction SPI
+			// 3 – PRTIM2: Power Reduction Timer/Counter2
+			// 2 – PRTIM1: Power Reduction Timer/Counter1
+			// 1 – PRTIM0: Power Reduction Timer/Counter0
+			// 0 – PRADC: Power Reduction ADC
+			
+			// shut down any peripheral clocks by writing all 1s
+			// may not be necessary in power-down sleep mode, but assures lowest power
+			PRR = 0xff;
+			
 			// To enter a sleep mode, the SE bit in MCUCR must be set and 
 			// a SLEEP instruction must be executed. The SMn bits in
 			// MCUCR select which sleep mode will be activated by 
@@ -194,8 +215,9 @@ int main(void)
 			//   0     1    Any logical change on INT0 generates an interrupt request
 			//   1     0    The falling edge of INT0 generates an interrupt request
 			//   1     1    The rising edge of INT0 generates an interrupt request
-			
-			PRR = 0xff;
+				
+			// set Power-down sleep mode, wait to set SE, don't care about any other bits
+			MCUCR = 0b00010000;
 			// set SE (sleep enable)
 			MCUCR |= (1<<SE);
 			// go intoPower-down mode SLEEP
