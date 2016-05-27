@@ -20,6 +20,7 @@
 // function prototypes
 void stayRoused(uint16_t dSec);
 void endRouse(void);
+void outputSetTimeSignal(void);
 
 enum machStates
 {
@@ -176,6 +177,7 @@ int main(void)
 	UCSR0B = (1<<RXEN0); // use defaults except for this
 	// set USART0 frame format: 8data, 1stop bit
 	UCSR0C = (3<<UCSZ00);
+	//UCSR0D, leave default 0, do not let Rx wake this uC
 
 	// Set USART1 to transmit to the main uC Rx
 	// set USART1 baud rate
@@ -187,6 +189,13 @@ int main(void)
 	UCSR1B = (1<<TXEN1); // use defaults except for this
 	// set USART1 frame format: 8data, 1stop bit
 	UCSR1C = (3<<UCSZ10);
+	//UCSR1D, leave default 0, do not let Rx wake this uC
+	
+	//REMAP[0] – U0MAP: USART0 Pin Mapping
+	// U0MAP RXD0 TXD0 Note
+	//  0    PA2  PA1  Default
+	//  1    PB2  PA7  Remapped
+	// for now, leave as default 0
 
 	cli(); // temporarily disable interrupts
 	// set the counter to zero
@@ -255,7 +264,18 @@ int main(void)
 			// go intoPower-down mode SLEEP
 			asm("sleep");
 		}
-    }
+    } // end of go-to-sleep
+	
+	// main program loop
+	
+	// following will be the usual exit point
+	// calls a function to send the set-time signal back to the main uC
+	// that function, if successful, will tie things up and end Rouse mode
+	// which will allow the uC to shut down till woken again by Reset
+	if (stateFlags & (1<<isValidTimeRxFromGPS)) {
+		outputSetTimeSignal();
+	}
+
 }
 
 void stayRoused(uint16_t dSec)
@@ -280,6 +300,17 @@ void endRouse(void) {
 	
 }
 
+void outputSetTimeSignal(void) {
+	// this will be the usual tie-up point
+	// transmit the set-time signal back to the main uC
+	// then set flag(s) to signal this uC to shut down
+	
+	// for testing, send a dummy message
+	
+	// reset the following flag, to allow the next periodic diagnostics
+	stateFlags &= ~(1<<isValidTimeRxFromGPS);
+}
+
 ISR(TIMER1_COMPA_vect) {
 	// occurs when TCNT1 matches OCR1A
 	// set to occur at 100Hz
@@ -290,7 +321,6 @@ ISR(TIMER1_COMPA_vect) {
 		ToggleCountdown = TOGGLE_INTERVAL;
 	}
 	
-
 	t = rouseCountdown;
 	if (t) rouseCountdown = --t;
 	
@@ -300,6 +330,12 @@ ISR(TIMER1_COMPA_vect) {
 		stateFlags &= ~(1<<isRoused);
 	}
 
+	// for testing, fake that we got a valid time signal
+	// have this occur every 3 seconds
+	if ((rouseCountdown % 300) == 0) {
+		stateFlags |= (1<<isValidTimeRxFromGPS);
+	}
+	
 	n = Timer1;						// 100Hz decrement timer 
 	if (n) Timer1 = --n;
 	n = Timer2;
