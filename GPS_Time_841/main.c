@@ -72,8 +72,7 @@ volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
 int main(void)
 {
-	uint16_t GpsTxUbrr = 103; // (F_CPU/(16 * GPS_TX_BAUD))-1 for GPS Tx at 4800 baud
-	uint16_t UcRxUbrr = 51; // (F_CPU/(16 * UC_RX_BAUD))-1 for main uC Rx at 9600 baud
+	uint16_t GpsTxUbrr, UcRxUbrr;
 
 	// set up to blink an LED
 	DDRA |= (1<<LED);
@@ -169,6 +168,7 @@ int main(void)
 	
 	// Set USART0 to receive the GPS Tx
 	// set USART0 baud rate
+	GpsTxUbrr = 103; // (F_CPU/(16 * GPS_TX_BAUD))-1 for GPS Tx at 4800 baud
 	UBRR0H = (unsigned char)(GpsTxUbrr>>8);
 	UBRR0L = (unsigned char)GpsTxUbrr;
 	// set USART0 to receive
@@ -176,9 +176,10 @@ int main(void)
 	UCSR0B = (1<<RXEN0); // use defaults except for this
 	// set USART0 frame format: 8data, 1stop bit
 	UCSR0C = (3<<UCSZ00);
-	
+
 	// Set USART1 to transmit to the main uC Rx
 	// set USART1 baud rate
+	UcRxUbrr = 51; // (F_CPU/(16 * UC_RX_BAUD))-1 for main uC Rx at 9600 baud
 	UBRR1H = (unsigned char)(UcRxUbrr>>8);
 	UBRR1L = (unsigned char)UcRxUbrr;
 	// set USART1 to transmit
