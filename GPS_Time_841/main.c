@@ -20,7 +20,7 @@
 // function prototypes
 void stayRoused(uint16_t dSec);
 void endRouse(void);
-void outputSetTimeSignal(void);
+void sendSetTimeSignal(void);
 
 enum machStates
 {
@@ -271,9 +271,9 @@ int main(void)
 	// following will be the usual exit point
 	// calls a function to send the set-time signal back to the main uC
 	// that function, if successful, will tie things up and end Rouse mode
-	// which will allow the uC to shut down till woken again by Reset
+	// which will allow this uC to shut down till woken again by Reset
 	if (stateFlags & (1<<isValidTimeRxFromGPS)) {
-		outputSetTimeSignal();
+		sendSetTimeSignal();
 	}
 
 }
@@ -300,13 +300,23 @@ void endRouse(void) {
 	
 }
 
-void outputSetTimeSignal(void) {
+void sendSetTimeSignal(void) {
 	// this will be the usual tie-up point
 	// transmit the set-time signal back to the main uC
 	// then set flag(s) to signal this uC to shut down
 	
 	// for testing, send a dummy message
-	
+	// wait for the transmit buffer to be empty
+	while (!(UCSR1A & (1<<TXC1))) { // bit is set when Tx shift register is empty
+		;
+	}
+	// write a 1 to clear the Transmit Complete bit
+	UCSR1A &= (1<<TXC1);
+	while (!(UDRE1 & (1<<TXC1))) { // Tx data register UDRn ignores any write unless UDREn=1
+		;
+	}
+	// put the character be transmitted in the Tx buffer
+	UDR1 = 'A'; // for testing, send only one character
 	// reset the following flag, to allow the next periodic diagnostics
 	stateFlags &= ~(1<<isValidTimeRxFromGPS);
 }
