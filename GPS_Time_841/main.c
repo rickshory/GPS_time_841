@@ -306,16 +306,18 @@ void sendSetTimeSignal(void) {
 	// then set flag(s) to signal this uC to shut down
 	
 	// for testing, send a dummy message
+	/*
 	// wait for the transmit buffer to be empty
 	while (!(UCSR1A & (1<<TXC1))) { // bit is set when Tx shift register is empty
 		;
 	}
 	// write a 1 to clear the Transmit Complete bit
 	UCSR1A &= (1<<TXC1);
-	while (!(UDRE1 & (1<<TXC1))) { // Tx data register UDRn ignores any write unless UDREn=1
+	*/
+	while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
 		;
 	}
-	// put the character be transmitted in the Tx buffer
+	// put the character to be transmitted in the Tx buffer
 	UDR1 = 'A'; // for testing, send only one character
 	// reset the following flag, to allow the next periodic diagnostics
 	stateFlags &= ~(1<<isValidTimeRxFromGPS);
