@@ -335,9 +335,15 @@ ISR(TIMER1_COMPA_vect) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
 		
-		// for testing, fake that we got a valid time signal
+
+	}
+	
+	// for testing, fake that we got a valid time signal
+	// do this every 1.5 seconds
+	if ((rouseCountdown % 150) == 0) {
 		stateFlags |= (1<<isValidTimeRxFromGPS);
 	}
+		
 	
 	t = rouseCountdown;
 	if (t) rouseCountdown = --t;
