@@ -10,6 +10,8 @@
 #define TOGGLE_INTERVAL 100
 #define GPS_TX_BAUD 4800
 #define UC_RX_BAUD 9600
+#define RX_BUF_LEN 128
+#define TX_BUF_LEN 32
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -53,6 +55,13 @@ volatile uint8_t stateFlags = 0;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
+
+static volatile char receiveByte;
+static volatile char recBuf[RX_BUF_LEN];
+static volatile char *recBufInPtr;
+static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
+static volatile char *cmdOutPtr;
+static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions within the captured NMEA sentence
 
 //pins by package
 //    PDIP QFN     used for programming
@@ -317,11 +326,13 @@ void sendSetTimeSignal(void) {
 	// write a 1 to clear the Transmit Complete bit
 	UCSR1A &= (1<<TXC1);
 	*/
-	while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
-		;
+	cmdOutPtr = cmdOut;
+	while (*cmdOutPtr != '\0') {
+		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
+			;
+		}
+		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
-	// put the character to be transmitted in the Tx buffer
-	UDR1 = 'A'; // for testing, send only one character
 	// reset the following flag, to allow the next periodic diagnostics
 	stateFlags &= ~(1<<isValidTimeRxFromGPS);
 }
