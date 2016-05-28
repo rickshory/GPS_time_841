@@ -267,19 +267,18 @@ int main(void)
 			MCUCR |= (1<<SE);
 			// go intoPower-down mode SLEEP
 			asm("sleep");
-		}
-    } // end of go-to-sleep
-	
-	// main program loop
-	
-	// following will be the usual exit point
-	// calls a function to send the set-time signal back to the main uC
-	// that function, if successful, will tie things up and end Rouse mode
-	// which will allow this uC to shut down till woken again by Reset
-	if (stateFlags & (1<<isValidTimeRxFromGPS)) {
-		sendSetTimeSignal();
-	}
+		} // end of go-to-sleep
 
+		// continue main program loop
+	
+		// following will be the usual exit point
+		// calls a function to send the set-time signal back to the main uC
+		// that function, if successful, will tie things up and end Rouse mode
+		// which will allow this uC to shut down till woken again by Reset
+		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
+			sendSetTimeSignal();
+		}
+    } // end of 'while(1)' main program loop
 }
 
 void stayRoused(uint16_t dSec)
