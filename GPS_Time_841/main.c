@@ -70,6 +70,7 @@ volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 // PB3  4  13        yes
 
 #define LED PA3
+#define TX1 PA5
 
 int main(void)
 {
@@ -77,6 +78,9 @@ int main(void)
 
 	// set up to blink an LED
 	DDRA |= (1<<LED);
+	
+	// set up Tx1 as an output
+	DDRA |= (1<<TX1);
 
 	// set up a heartbeat counter, interrupt every 0.1 second
 	// set up 16-bit TIMER1
@@ -331,6 +335,9 @@ ISR(TIMER1_COMPA_vect) {
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
+		
+		// for testing, fake that we got a valid time signal
+		stateFlags |= (1<<isValidTimeRxFromGPS);
 	}
 	
 	t = rouseCountdown;
@@ -342,11 +349,7 @@ ISR(TIMER1_COMPA_vect) {
 		stateFlags &= ~(1<<isRoused);
 	}
 
-	// for testing, fake that we got a valid time signal
-	// have this occur every 3 seconds
-	if ((rouseCountdown % 300) == 0) {
-		stateFlags |= (1<<isValidTimeRxFromGPS);
-	}
+
 	
 	n = Timer1;						// 100Hz decrement timer 
 	if (n) Timer1 = --n;
