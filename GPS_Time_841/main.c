@@ -345,8 +345,6 @@ ISR(TIMER1_COMPA_vect) {
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
-		
-
 	}
 	
 	// for testing, fake that we got a valid time signal
@@ -374,4 +372,16 @@ ISR(TIMER1_COMPA_vect) {
 	n = Timer3;
 	if (n) Timer3 = --n;
 
+}
+
+ISR(USART0_RX_vect) {
+	// occurs when USART0 Rx Complete
+	// recBufInPtr++ = UDR0; // basic task, put the character in the buffer
+	char newByte = UDR0;
+	if (newByte == '\r') { // deal with exceptions, end of NEMA string
+		*recBufInPtr = '\0';
+		recBufInPtr = recBuf;
+	} else {
+		*recBufInPtr++ = newByte;
+	}
 }
