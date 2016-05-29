@@ -23,6 +23,43 @@
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
+int parseNMEA(void);
+
+/*
+example
+$GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68
+
+225446       Time of fix 22:54:46 UTC
+A            Navigation receiver warning A = OK, V = warning
+4916.45,N    Latitude 49 deg. 16.45 min North
+12311.12,W   Longitude 123 deg. 11.12 min West
+000.5        Speed over ground, Knots
+054.7        Course Made Good, True
+191194       Date of fix  19 November 1994
+020.3,E      Magnetic variation 20.3 deg East
+*68          mandatory checksum
+*/
+
+// NMEA sentence, for example:
+//$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
+enum NMEA_fields {sentenceType, timeStamp, isValid, curLat, isNorthOrSouth, curLon, isEastOrWest,
+speedKnots, trueCourse, dateStamp, magVar, varEastOrWest, checkSum};
+
+static volatile union Prog_status // Program status bit flags
+{
+	unsigned char status;
+	struct
+	{
+		unsigned char gps_Request_Active:1;
+		unsigned char gps_Power_Enabled:1;
+		unsigned char gps_Being_Pulsed:1;
+		unsigned char listen_To_GPS:1;
+		unsigned char cur_Rx_Bit:1;
+		unsigned char cmd_Tx_ongoing:1;
+		unsigned char new_NMEA_Field:1;
+		unsigned char flag7:1;
+	};
+	} Prog_status = {0};
 
 enum machStates
 {
@@ -310,6 +347,53 @@ void endRouse(void) {
 	PORTA &= ~(1<<LED); // force pilot light off
 	sei();
 	
+}
+
+int parseNMEA(void) {
+	char *endParsePtr, *parsePtr = recBuf;
+	int fldCounter = sentenceType; // 0th NMEA field
+	// cleanly get the current position of the NMEA buffer pointer
+	cli();
+	endParsePtr = recBufInPtr;
+	sei();
+	Prog_status.new_NMEA_Field = 1; // we are starting to work on the first field
+	while (1) {
+		if (parsePtr++ > endParsePtr) { // if we can't complete the parsing
+			return 1; // exit, flag that it failed
+		}
+		if (*parsePtr == ',') { // the field delimiter
+			if (Prog_status.new_NMEA_Field == 1) { // we just started working on a field and
+				// encountered a comma indicating the next field, so the current field is empty
+				NMEA_Ptrs[fldCounter] = NULL;
+			}
+			fldCounter++; // point to the next field
+			Prog_status.new_NMEA_Field = 1; // working on a new field
+			} else { // not a comma
+			if (Prog_status.new_NMEA_Field == 1) { // we are starting a new field
+				// we have a non-comma character, so the field contains something
+				NMEA_Ptrs[fldCounter] = parsePtr; // plant the field pointer here
+				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
+			}
+		}
+		if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
+			// optimize test to fail early if invalid
+			// for testing break down conditions
+			if (*(NMEA_Ptrs[sentenceType] + 4) != 'C') return 6;
+			if (*(NMEA_Ptrs[sentenceType] + 3) != 'M') return 5;
+			if (*(NMEA_Ptrs[sentenceType] + 2) != 'R') return 4;
+			if (*(NMEA_Ptrs[sentenceType] + 1) != 'P') return 3;
+			if (*(NMEA_Ptrs[sentenceType]) != 'G') return 2;
+			// not a sentence type we can use
+		}
+		if (fldCounter > isValid) { // if we've got the validity char, test it
+			if (*(NMEA_Ptrs[isValid]) != 'A') {
+				return 9; // GPS says data not valid
+			}
+		}
+		if (fldCounter > dateStamp) { // don't need any fields after this
+			return 0;
+		}
+	}
 }
 
 void sendSetTimeSignal(void) {
