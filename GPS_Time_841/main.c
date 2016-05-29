@@ -224,10 +224,13 @@ int main(void)
 	UBRR0L = (unsigned char)GpsTxUbrr;
 	// set USART0 to receive
 	// UCSR0A, use defaults
-	UCSR0B = (1<<RXEN0); // use defaults except for this
+	// UCSR0B - use defaults except for these 
+	// 7 – RXCIE0: RX Complete Interrupt Enable
+	// 4 – RXEN0: Receiver Enable
+	UCSR0B = (1<<RXCIE0)|(1<<RXEN0);
 	// set USART0 frame format: 8data, 1stop bit
 	UCSR0C = (3<<UCSZ00);
-	//UCSR0D, leave default 0, do not let Rx wake this uC
+	//UCSR0D, leave default 0, do not let Rx wake this uC, probably would be noise
 
 	// Set USART1 to transmit to the main uC Rx
 	// set USART1 baud rate
