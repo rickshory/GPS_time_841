@@ -376,12 +376,14 @@ ISR(TIMER1_COMPA_vect) {
 
 ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
-	// recBufInPtr++ = UDR0; // basic task, put the character in the buffer
-	char newByte = UDR0;
-	if (newByte == '\r') { // deal with exceptions, end of NEMA string
-		*recBufInPtr = '\0';
-		recBufInPtr = recBuf;
-	} else {
-		*recBufInPtr++ = newByte;
+	// *recBufInPtr++ = UDR0; // basic task, put the character in the buffer
+	char receiveByte = UDR0;
+	if (receiveByte == '$') { // beginning of NMEA sentence
+		recBufInPtr = recBuf; // point to start of buffer
+	}
+	*recBufInPtr++ = receiveByte; // put character in buffer
+	// if overrun for some reason, wrap; probably bad data anyway and will be repeated
+	if (recBufInPtr >= (recBuf + RX_BUF_LEN)) {
+		recBufInPtr = recBuf; // wrap overflow to start of buffer
 	}
 }
