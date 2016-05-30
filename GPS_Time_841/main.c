@@ -23,6 +23,8 @@
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
+int gpsOn(void);
+int gpsOff(void);
 int parseNMEA(void);
 
 /*
@@ -57,7 +59,7 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char cur_Rx_Bit:1;
 		unsigned char cmd_Tx_ongoing:1;
 		unsigned char new_NMEA_Field:1;
-		unsigned char flag7:1;
+		unsigned char serial_Received:1;
 	};
 	} Prog_status = {0};
 
@@ -91,7 +93,7 @@ volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
-volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
+volatile uint8_t Timeout1, Timeout2, Timeout3;	// 100Hz decrement timeouts
 
 static volatile char receiveByte;
 static volatile char recBuf[RX_BUF_LEN];
@@ -117,6 +119,9 @@ static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions wit
 
 #define LED PA3
 #define TX1 PA5
+#define RX0 PA2
+#define GPS_PWR PB0
+#define PULSE_GPS PB1
 
 int main(void)
 {
@@ -127,6 +132,12 @@ int main(void)
 	
 	// set up Tx1 as an output
 	DDRA |= (1<<TX1);
+	
+	// set up GPS control lines
+	DDRB |= (1<<GPS_PWR); // set as output
+	PORTB &= ~(1<<GPS_PWR); // assure GPS power enable starts low
+	DDRB |= (1<<PULSE_GPS); // set as output
+	PORTB &= ~(1<<PULSE_GPS); // assure pulse signal to GPS starts low
 
 	// set up a heartbeat counter, interrupt every 0.1 second
 	// set up 16-bit TIMER1
@@ -265,7 +276,13 @@ int main(void)
 	// set the global interrupt enable bit.
 	sei();
 	
-	stayRoused(1000); // stay roused for 10 seconds
+	stayRoused(1500); // stay roused for 15 seconds
+	
+	if (!gpsOn()) { // successfully turned on GPS
+		stayRoused(1000); // extend rouse interval another 10 seconds at least
+	} else {
+		; // let rouse time out
+	}
 
     while (1) 
     {
@@ -352,6 +369,31 @@ void endRouse(void) {
 	
 }
 
+int gpsOn(void) {
+	uint8_t tryCt;
+	Prog_status.serial_Received = 0; // assure flag starts clear
+	PORTB |= (1<<GPS_PWR); // turn GPS power on
+	for (Timeout1 = 100; Timeout1; ); // Wait for 1sec (1000ms) for power to stabilize
+	// try 3 times to turn GPS on
+	for (tryCt = 0; tryCt < 3; tryCt++)	{
+		PORTB |= (1<<PULSE_GPS); // pulse the GPS
+		for (Timeout1 = 20; Timeout1; ); // apply a pulse duration of 200ms
+		PORTB &= ~(1<<PULSE_GPS);
+		for (Timeout1 = 100; Timeout1; ); // Wait 1sec
+		if (Prog_status.serial_Received == 1) { // if we are receiving serial from the GPS
+			return 0; // good to go
+		}
+	}
+	// not receiving serial from GPS after 3 tries
+	PORTB &= ~(1<<GPS_PWR); // turn GPS power circuit off
+	return 1;
+}
+
+int gpsOff(void) {
+	
+	Prog_status.serial_Received = 0; // assure flag starts clear
+	return 0; // stub
+}
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = recBuf;
 	int fldCounter = sentenceType; // 0th NMEA field
@@ -452,12 +494,12 @@ ISR(TIMER1_COMPA_vect) {
 
 
 	
-	n = Timer1;						// 100Hz decrement timer 
-	if (n) Timer1 = --n;
-	n = Timer2;
-	if (n) Timer2 = --n;
-	n = Timer3;
-	if (n) Timer3 = --n;
+	n = Timeout1;						// 100Hz decrement timer 
+	if (n) Timeout1 = --n;
+	n = Timeout2;
+	if (n) Timeout2 = --n;
+	n = Timeout3;
+	if (n) Timeout3 = --n;
 
 }
 
@@ -469,6 +511,7 @@ ISR(USART0_RX_vect) {
 		recBufInPtr = recBuf; // point to start of buffer
 	}
 	*recBufInPtr++ = receiveByte; // put character in buffer
+	Prog_status.serial_Received = 1; // flag that serial is being received
 	// if overrun for some reason, wrap; probably bad data anyway and will be repeated
 	if (recBufInPtr >= (recBuf + RX_BUF_LEN)) {
 		recBufInPtr = recBuf; // wrap overflow to start of buffer
