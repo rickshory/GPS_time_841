@@ -276,8 +276,8 @@ int main(void)
 	// set the global interrupt enable bit.
 	sei();
 	
-	stayRoused(1500); // stay roused for 15 seconds
-	
+	stayRoused(1000); // stay roused for 10 seconds
+
 	if (!gpsOn()) { // successfully turned on GPS
 		stayRoused(1000); // extend rouse interval another 10 seconds at least
 	} else {
@@ -379,7 +379,7 @@ int gpsOn(void) {
 		PORTB |= (1<<PULSE_GPS); // pulse the GPS
 		for (Timeout1 = 20; Timeout1; ); // apply a pulse duration of 200ms
 		PORTB &= ~(1<<PULSE_GPS);
-		for (Timeout1 = 100; Timeout1; ); // Wait 1sec
+		for (Timeout1 = 200; Timeout1; ); // Wait 2 sec
 		if (Prog_status.serial_Received == 1) { // if we are receiving serial from the GPS
 			return 0; // good to go
 		}
@@ -390,10 +390,25 @@ int gpsOn(void) {
 }
 
 int gpsOff(void) {
-	
-	Prog_status.serial_Received = 0; // assure flag starts clear
-	return 0; // stub
+	uint8_t tryCt;
+	// try 3 times to turn GPS off
+	for (tryCt = 0; tryCt < 3; tryCt++)	{
+		PORTB |= (1<<PULSE_GPS); // pulse the GPS
+		for (Timeout1 = 20; Timeout1; ); // apply a pulse duration of 200ms
+		PORTB &= ~(1<<PULSE_GPS);
+		Prog_status.serial_Received = 0; // clear the flag
+		for (Timeout1 = 200; Timeout1; ); // Wait 2 sec
+		if (Prog_status.serial_Received == 0) { // no serial, assume GPS has stopped
+			PORTB &= ~(1<<GPS_PWR); // turn GPS power circuit off
+			return 0; // normal shut down accomplished
+		}
+	}
+	// GPS not properly shut down after 3 tries
+	for (Timeout1 = 200; Timeout1; ); // Wait 2 sec
+	PORTB &= ~(1<<GPS_PWR); // turn GPS power off anyway, can't leave hanging
+	return 1;
 }
+
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = recBuf;
 	int fldCounter = sentenceType; // 0th NMEA field
@@ -482,7 +497,6 @@ ISR(TIMER1_COMPA_vect) {
 		stateFlags |= (1<<isValidTimeRxFromGPS);
 	}
 		
-	
 	t = rouseCountdown;
 	if (t) rouseCountdown = --t;
 	
@@ -492,15 +506,12 @@ ISR(TIMER1_COMPA_vect) {
 		stateFlags &= ~(1<<isRoused);
 	}
 
-
-	
 	n = Timeout1;						// 100Hz decrement timer 
 	if (n) Timeout1 = --n;
 	n = Timeout2;
 	if (n) Timeout2 = --n;
 	n = Timeout3;
 	if (n) Timeout3 = --n;
-
 }
 
 ISR(USART0_RX_vect) {
