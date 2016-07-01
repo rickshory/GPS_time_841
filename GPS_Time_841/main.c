@@ -84,7 +84,7 @@ enum stateFlagsBits
 	isSerialRxFromGPS, // has some serial data been received from the GPS
 	isValid_NMEA_RxFromGPS, // has some valid NMEA data been received from the GPS
 	isValidTimeRxFromGPS, // has a valid Timestamp been received from the GPS
-	sfBit6, // unused
+	testExit, // for testing shutdown
 	sfBit7 // unused
 };
 
@@ -122,6 +122,7 @@ static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions wit
 #define RX0 PA2
 #define GPS_PWR PB0
 #define PULSE_GPS PB1
+#define TEST_FORCE_GPS_OFF PA0
 
 int main(void)
 {
@@ -336,6 +337,9 @@ int main(void)
 		} // end of go-to-sleep
 
 		// continue main program loop
+		if (!parseNMEA()) { // parsed valid NEMA string
+			
+		}
 	
 		// following will be the usual exit point
 		// calls a function to send the set-time signal back to the main uC
@@ -343,7 +347,20 @@ int main(void)
 		// which will allow this uC to shut down till woken again by Reset
 		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
 			sendSetTimeSignal();
+			if (stateFlags & (1<<testExit)) {
+				if (!gpsOff()) {
+					endRouse();
+				}
+			}
 		}
+		
+		// for testing, make a way to force the GPS power-down sequence
+		// poll the PA0 pin, look for it being pulled low
+		if (!(PINA & (1<<TEST_FORCE_GPS_OFF))) {
+			stateFlags |= (1<<testExit);
+		}
+		
+		
     } // end of 'while(1)' main program loop
 }
 
