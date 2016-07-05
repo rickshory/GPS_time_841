@@ -133,6 +133,7 @@ int main(void)
 	
 	// set up Tx1 as an output
 	DDRA |= (1<<TX1);
+//	DIDR0 |= (1<<ADC5D); // disable digital inputs on this pin
 	
 	// set up GPS control lines
 	DDRB |= (1<<GPS_PWR); // set as output
@@ -290,6 +291,10 @@ int main(void)
 		if (!(stateFlags & (1<<isRoused))) {
 			// go to sleep
 			PORTA &= ~(1<<LED); // turn off pilot light blinkey
+			
+			// shut down UARTs
+			UCSR0B = 0;
+			UCSR1B = 0;
 			
 			// before setting PRADC (PRR[0], below) assure ADC is disabled
 			// may not be necessary, if ADC never enabled, but assures lowest power
