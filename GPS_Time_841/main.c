@@ -118,8 +118,10 @@ static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions wit
 // PB3  4  13        yes
 
 #define LED PA3
-#define TX1 PA5
+#define TX0 PA1
 #define RX0 PA2
+#define TX1 PA5
+#define RX1 PA4
 #define GPS_PWR PB0
 #define PULSE_GPS PB1
 #define TEST_FORCE_GPS_OFF PA0
@@ -130,10 +132,14 @@ int main(void)
 
 	// set up to blink an LED
 	DDRA |= (1<<LED);
-	
+
+/*
 	// set up Tx1 as an output
 	DDRA |= (1<<TX1);
 //	DIDR0 |= (1<<ADC5D); // disable digital inputs on this pin
+*/
+	// set up Tx0 as an output
+	DDRA |= (1<<TX0);
 	
 	// set up GPS control lines
 	DDRB |= (1<<GPS_PWR); // set as output
@@ -229,7 +235,8 @@ int main(void)
 	//       Together with the UCSZn2 bit, the UCSZn[1:0] bits set the number of data bits
 	// 2:1 use (11)= 8-bit character size (use default UCSRnB[UCSZn2]= 0)
 	// 0 use default 0, Clock Polarity, don't care, not used by Asynchronous USART
-	
+
+/*	
 	// Set USART0 to receive the GPS Tx
 	// set USART0 baud rate
 	GpsTxUbrr = 103; // (F_CPU/(16 * GPS_TX_BAUD))-1 for GPS Tx at 4800 baud
@@ -256,6 +263,33 @@ int main(void)
 	// set USART1 frame format: 8data, 1stop bit
 	UCSR1C = (3<<UCSZ10);
 	//UCSR1D, leave default 0, do not let Rx wake this uC
+*/
+	// Set USART1 to receive the GPS Tx
+	// set USART1 baud rate
+	GpsTxUbrr = 103; // (F_CPU/(16 * GPS_TX_BAUD))-1 for GPS Tx at 4800 baud
+	UBRR1H = (unsigned char)(GpsTxUbrr>>8);
+	UBRR1L = (unsigned char)GpsTxUbrr;
+	// set USART1 to receive
+	// UCSR1A, use defaults
+	// UCSR1B - use defaults except for these
+	// 7 – RXCIE1: RX Complete Interrupt Enable
+	// 4 – RXEN1: Receiver Enable
+	UCSR1B = (1<<RXCIE1)|(1<<RXEN1);
+	// set USART1 frame format: 8data, 1stop bit
+	UCSR1C = (3<<UCSZ10);
+	//UCSR1D, leave default 0, do not let Rx wake this uC, probably would be noise
+
+	// Set USART0 to transmit to the main uC Rx
+	// set USART0 baud rate
+	UcRxUbrr = 51; // (F_CPU/(16 * UC_RX_BAUD))-1 for main uC Rx at 9600 baud
+	UBRR0H = (unsigned char)(UcRxUbrr>>8);
+	UBRR0L = (unsigned char)UcRxUbrr;
+	// set USART0 to transmit
+	// UCSR0A, use defaults
+	UCSR0B = (1<<TXEN0); // use defaults except for this
+	// set USART0 frame format: 8data, 1stop bit
+	UCSR0C = (3<<UCSZ00);
+	//UCSR0D, leave default 0, do not let Rx wake this uC
 	
 	//REMAP[0] – U0MAP: USART0 Pin Mapping
 	// U0MAP RXD0 TXD0 Note
@@ -494,10 +528,16 @@ void sendSetTimeSignal(void) {
 	*/
 	cmdOutPtr = cmdOut;
 	while (*cmdOutPtr != '\0') {
+/*
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
 			;
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
+*/
+		while (!(UCSR0A & (1<<UDRE0))) { // Tx data register UDRn ignores any write unless UDREn=1
+			;
+		}
+		UDR0 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
 	// reset the following flag, to allow the next periodic diagnostics
 	stateFlags &= ~(1<<isValidTimeRxFromGPS);
@@ -540,6 +580,21 @@ ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
 	// *recBufInPtr++ = UDR0; // basic task, put the character in the buffer
 	char receiveByte = UDR0;
+	if (receiveByte == '$') { // beginning of NMEA sentence
+		recBufInPtr = recBuf; // point to start of buffer
+	}
+	*recBufInPtr++ = receiveByte; // put character in buffer
+	Prog_status.serial_Received = 1; // flag that serial is being received
+	// if overrun for some reason, wrap; probably bad data anyway and will be repeated
+	if (recBufInPtr >= (recBuf + RX_BUF_LEN)) {
+		recBufInPtr = recBuf; // wrap overflow to start of buffer
+	}
+}
+
+ISR(USART1_RX_vect) {
+	// occurs when USART1 Rx Complete
+	// *recBufInPtr++ = UDR1; // basic task, put the character in the buffer
+	char receiveByte = UDR1;
 	if (receiveByte == '$') { // beginning of NMEA sentence
 		recBufInPtr = recBuf; // point to start of buffer
 	}
