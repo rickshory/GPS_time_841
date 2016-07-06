@@ -313,15 +313,21 @@ int main(void)
 	sei();
 	
 	stayRoused(1000); // stay roused for 10 seconds
-
+/*
 	if (!gpsOn()) { // successfully turned on GPS
 		stayRoused(1000); // extend rouse interval another 10 seconds at least
 	} else {
 		; // let rouse time out
 	}
-
+*/
     while (1) 
     {
+		// for testing, stay awake
+		if (!(stateFlags & (1<<isRoused))) {
+			stayRoused(1000); 
+		}
+
+/*
 		if (!(stateFlags & (1<<isRoused))) {
 			// go to sleep
 			PORTA &= ~(1<<LED); // turn off pilot light blinkey
@@ -399,7 +405,14 @@ int main(void)
 			stateFlags |= (1<<testExit);
 		}
 		
-		
+*/		
+		// for testing, fake that we got a valid time signal
+		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
+			sendSetTimeSignal();
+			// reset the following flag, to allow the next periodic diagnostics
+			stateFlags &= ~(1<<isValidTimeRxFromGPS);			
+		}
+
     } // end of 'while(1)' main program loop
 }
 
@@ -539,8 +552,6 @@ void sendSetTimeSignal(void) {
 		}
 		UDR0 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
-	// reset the following flag, to allow the next periodic diagnostics
-	stateFlags &= ~(1<<isValidTimeRxFromGPS);
 }
 
 ISR(TIMER1_COMPA_vect) {
