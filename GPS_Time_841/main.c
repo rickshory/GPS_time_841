@@ -24,6 +24,23 @@ void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
 
+
+static volatile union Prog_status // Program status bit flags
+{
+	unsigned char status;
+	struct
+	{
+		unsigned char gps_Request_Active:1;
+		unsigned char gps_Power_Enabled:1;
+		unsigned char gps_Being_Pulsed:1;
+		unsigned char listen_To_GPS:1;
+		unsigned char cur_Rx_Bit:1;
+		unsigned char cmd_Tx_ongoing:1;
+		unsigned char new_NMEA_Field:1;
+		unsigned char serial_Received:1;
+	};
+	} Prog_status = {0};
+
 enum machStates
 {
 	Asleep = 0,
@@ -381,4 +398,19 @@ ISR(TIMER1_COMPA_vect) {
 	n = Timer3;
 	if (n) Timer3 = --n;
 
+}
+
+ISR(USART0_RX_vect) {
+	// occurs when USART0 Rx Complete
+	// *recBufInPtr++ = UDR0; // basic task, put the character in the buffer
+	char receiveByte = UDR0;
+	if (receiveByte == '$') { // beginning of NMEA sentence
+		recBufInPtr = recBuf; // point to start of buffer
+	}
+	*recBufInPtr++ = receiveByte; // put character in buffer
+	Prog_status.serial_Received = 1; // flag that serial is being received
+	// if overrun for some reason, wrap; probably bad data anyway and will be repeated
+	if (recBufInPtr >= (recBuf + RX_BUF_LEN)) {
+		recBufInPtr = recBuf; // wrap overflow to start of buffer
+	}
 }
