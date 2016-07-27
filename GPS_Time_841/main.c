@@ -233,6 +233,10 @@ int main(void)
 			// go to sleep
 			PORTA &= ~(1<<LED); // turn off pilot light blinkey
 			
+			// shut down UARTs
+			UCSR0B = 0;
+			UCSR1B = 0;
+						
 			// before setting PRADC (PRR[0], below) assure ADC is disabled
 			// may not be necessary, if ADC never enabled, but assures lowest power
 			// ADCSRA – ADC Control and Status Register A
