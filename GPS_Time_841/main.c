@@ -23,6 +23,7 @@
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
+void restoreCmdDefault(void);
 
 
 static volatile union Prog_status // Program status bit flags
@@ -369,6 +370,8 @@ void sendSetTimeSignal(void) {
 	}
 	// reset the following flag, to allow the next periodic diagnostics
 	stateFlags &= ~(1<<isValidTimeRxFromGPS);
+	// after testing diagnostics, put the string back as it was
+	restoreCmdDefault();
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -423,4 +426,37 @@ ISR(USART0_RX_vect) {
 	if (recBufInPtr >= (recBuf + RX_BUF_LEN)) {
 		recBufInPtr = recBuf; // wrap overflow to start of buffer
 	}
+}
+
+void restoreCmdDefault(void) {
+	// restore the output buffer to its default 't2016-03-19 20:30:01 -08'
+	cmdOut[0] = 't';
+	cmdOut[1] = '2';
+	cmdOut[2] = '0';
+	cmdOut[3] = '1';
+	cmdOut[4] = '6';
+	cmdOut[5] = '-';
+	cmdOut[6] = '0';
+	cmdOut[7] = '3';
+	cmdOut[8] = '-';
+	cmdOut[9] = '1';
+	cmdOut[10] = '0';
+	cmdOut[11] = ' ';
+	cmdOut[12] = '2';
+	cmdOut[13] = '0';
+	cmdOut[14] = ':';
+	cmdOut[15] = '3';
+	cmdOut[16] = '0';
+	cmdOut[17] = ':';
+	cmdOut[18] = '0';
+	cmdOut[19] = '1';
+	cmdOut[20] = ' ';
+	cmdOut[21] = '-';
+	cmdOut[22] = '0';
+	cmdOut[23] = '8';
+	cmdOut[24] = '\n';
+	cmdOut[25] = '\r';
+	cmdOut[26] = '\n';
+	cmdOut[27] = '\r';
+	cmdOut[28] = '\0';
 }
