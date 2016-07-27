@@ -96,7 +96,14 @@ static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions wit
 // PB3  4  13        yes
 
 #define LED PA3
-#define TX1 PA5
+#define TX0 PA1 // not currently used
+#define RX0 PA2 // used to Rx from GPS
+#define TX1 PA5 // used to Tx time signal
+#define RX1 PA4 // not currently used
+#define GPS_PWR PB0
+#define PULSE_GPS PB1
+#define TEST_FORCE_GPS_OFF PA0
+
 
 int main(void)
 {
@@ -204,7 +211,10 @@ int main(void)
 	UBRR0L = (unsigned char)GpsTxUbrr;
 	// set USART0 to receive
 	// UCSR0A, use defaults
-	UCSR0B = (1<<RXEN0); // use defaults except for this
+	// UCSR0B - use defaults except for these
+	// 7 – RXCIE0: RX Complete Interrupt Enable
+	// 4 – RXEN0: Receiver Enable
+	UCSR0B = (1<<RXCIE0)|(1<<RXEN0);
 	// set USART0 frame format: 8data, 1stop bit
 	UCSR0C = (3<<UCSZ00);
 	//UCSR0D, leave default 0, do not let Rx wake this uC
