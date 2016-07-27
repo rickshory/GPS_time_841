@@ -230,6 +230,8 @@ int main(void)
     while (1) 
     {
 		if (!(stateFlags & (1<<isRoused))) {
+			stayRoused(1000); // for testing, keep awake
+/*			
 			// go to sleep
 			PORTA &= ~(1<<LED); // turn off pilot light blinkey
 			
@@ -280,6 +282,7 @@ int main(void)
 			MCUCR |= (1<<SE);
 			// go intoPower-down mode SLEEP
 			asm("sleep");
+*/
 		} // end of go-to-sleep
 
 		// continue main program loop
