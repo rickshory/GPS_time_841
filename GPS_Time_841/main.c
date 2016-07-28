@@ -375,6 +375,15 @@ void endRouse(void) {
 	
 }
 
+/*
+int isSerialRx(void) {
+	return Prog_status.serial_Received;
+}
+
+void clrSerialRx(void) {
+	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
+}
+*/
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = (char*)recBuf;
 	int fldCounter = sentenceType; // 0th NMEA field
@@ -466,6 +475,10 @@ void sendSetTimeSignal(void) {
 	UCSR1A &= (1<<TXC1);
 	*/
 	cmdOutPtr = cmdOut;
+	// debugging diagnostics, put flag characters into the output string
+	if (Prog_status.serial_Received) {
+		*cmdOutPtr = 'r';
+	}
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
 			;
