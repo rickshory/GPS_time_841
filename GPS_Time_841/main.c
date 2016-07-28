@@ -469,6 +469,9 @@ void sendSetTimeSignal(void) {
 	// debugging diagnostics, put flag characters into the output string
 	if (Prog_status.serial_Received) {
 		*cmdOutPtr = 'r';
+		// diagnostics; put the result code of parsing attempt into the output string
+		int n = parseNMEA();
+		*(cmdOutPtr + 1 + n) = ('A' + n);
 	}
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
