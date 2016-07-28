@@ -375,15 +375,6 @@ void endRouse(void) {
 	
 }
 
-/*
-int isSerialRx(void) {
-	return Prog_status.serial_Received;
-}
-
-void clrSerialRx(void) {
-	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
-}
-*/
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = (char*)recBuf;
 	int fldCounter = sentenceType; // 0th NMEA field
@@ -489,6 +480,7 @@ void sendSetTimeSignal(void) {
 	stateFlags &= ~(1<<isValidTimeRxFromGPS);
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
+	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
 }
 
 ISR(TIMER1_COMPA_vect) {
