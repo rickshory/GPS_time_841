@@ -60,7 +60,24 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char new_NMEA_Field:1;
 		unsigned char serial_Received:1;
 	};
-	} Prog_status = {0};
+} Prog_status = {0};
+
+static volatile union NMEA_status // NMEA status bit flags
+// mostly salient for debugging
+{
+	unsigned char nmea_stat_char;
+	struct
+	{
+		unsigned char got_lon_field:1;
+		unsigned char got_time_field:1;
+		unsigned char got_date_field:1;
+		unsigned char is_nmea_string:1;
+		unsigned char is_nmea_sentence:1;
+		unsigned char is_gprmc_sentence:1;
+		unsigned char valid_data:1;
+		unsigned char valid_time_signal:1;
+	};
+	} NMEA_status = {0};
 
 enum machStates
 {
@@ -378,6 +395,7 @@ void endRouse(void) {
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = (char*)recBuf;
 	int fldCounter = sentenceType; // 0th NMEA field
+	NMEA_status.nmea_stat_char = 0; // clear all flags; most are only salient for debugging
 	// cleanly get the current position of the NMEA buffer pointer
 	cli();
 	endParsePtr = (char*)recBufInPtr;
@@ -402,6 +420,7 @@ int parseNMEA(void) {
 			}
 		}
 		if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
+			NMEA_status.is_nmea_sentence = 1;
 			// optimize test to fail early if invalid
 			// for testing break down conditions
 			if (*(NMEA_Ptrs[sentenceType] + 4) != 'C') return 6;
@@ -411,29 +430,34 @@ int parseNMEA(void) {
 			if (*(NMEA_Ptrs[sentenceType]) != 'G') return 2;
 			// not a sentence type we can use
 		}
+		NMEA_status.is_gprmc_sentence = 1;
 		if (fldCounter > isValid) { // if we've got the validity char, test it
 			if (*(NMEA_Ptrs[isValid]) != 'A') {
 				return 9; // GPS says data not valid
+			} else {
+				NMEA_status.valid_data = 1;
 			}
 		}
 		// copy needed parameters into their own strings; may not ultimately do it this way
-		
 		switch (fldCounter) {
 			case timeStamp:
-			d = timeOfFix;
-			break;
+				d = timeOfFix;
+				NMEA_status.got_time_field = 1;
+				break;
 			case curLon:
-			d = longitudeNum;
-			break;
+				d = longitudeNum;
+				NMEA_status.got_lon_field = 1;
+				break;
 			case isEastOrWest:
-			d = longitudeEorW;
-			break;
+				d = longitudeEorW;
+				break;
 			case dateStamp:
-			d = dateOfFix;
-			break;
+				d = dateOfFix;
+				NMEA_status.got_date_field = 1;
+				break;
 			default:
-			d = NULL;
-			break;
+				d = NULL;
+				break;
 		}
 		if (d != NULL) {
 			i = 0;
@@ -445,6 +469,7 @@ int parseNMEA(void) {
 		}
 		
 		if (fldCounter > dateStamp) { // don't need any fields after this
+			NMEA_status.valid_time_signal = 1;
 			return 0;
 		}
 	}
