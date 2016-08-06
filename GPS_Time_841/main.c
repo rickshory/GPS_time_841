@@ -418,7 +418,7 @@ int parseNMEA(void) {
 	int fldCounter; // 0th NMEA field
 	NMEA_status.nmea_stat_char = 0; // clear all flags
 	// null all the pointers
-	for (fldCounter = sentenceType; fldCounter <=  checkSum; fldCounter++) {
+	for (fldCounter = sentenceType; fldCounter <= checkSum; fldCounter++) {
 		NMEA_Ptrs[fldCounter] = NULL;
 	}
 	// re-initialize
@@ -461,19 +461,18 @@ int parseNMEA(void) {
 			}
 		}
 		
-/*
+
 		if (!(NMEA_status.valid_data)) {
 			if (fldCounter > isValid) { // if we've got the validity char, test it
 				if (*(NMEA_Ptrs[isValid]) == 'A') {
 					NMEA_status.valid_data = 1;
 				} else {
-					return 9; // GPS says data not valid
+//					return 9; // GPS says data not valid
 				}
 			}			
 		}
-*/
-		NMEA_status.valid_data = 1; // for testing, fake that any string is valid
-		
+
+/*		
 		// copy needed parameters into their own strings; may not ultimately do it this way
 		switch (fldCounter) {
 			case timeStamp:
@@ -511,13 +510,37 @@ int parseNMEA(void) {
 			}
 			d[i] = '\0';
 		}
-		
+*/		
 		if (fldCounter > dateStamp) { // don't need any fields after this
 			// when GPS starts up, it gives the date string as "181210" and 
 			// time string as "235846.nnn", incrementing every second so 
 			// time soon rolls over to "000000.nnn" and date to "191210"
 //			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
-			if ((NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
+	
+			// try parsing set-time signal right here
+			// parse date
+			cmdOut[3] = (*(NMEA_Ptrs[dateStamp] + 4));
+			cmdOut[4] = (*(NMEA_Ptrs[dateStamp] + 5));
+			cmdOut[6] = (*(NMEA_Ptrs[dateStamp] + 2));
+			cmdOut[7] = (*(NMEA_Ptrs[dateStamp] + 3));
+			cmdOut[9] = (*(NMEA_Ptrs[dateStamp] + 0));
+			cmdOut[10] = (*(NMEA_Ptrs[dateStamp] + 1));
+			NMEA_status.got_date_field = 1;
+			// parse time
+			cmdOut[12] = (*(NMEA_Ptrs[timeStamp] + 0));
+			cmdOut[13] = (*(NMEA_Ptrs[timeStamp] + 1));
+			cmdOut[15] = (*(NMEA_Ptrs[timeStamp] + 2));
+			cmdOut[16] = (*(NMEA_Ptrs[timeStamp] + 3));
+			cmdOut[18] = (*(NMEA_Ptrs[timeStamp] + 4));
+			cmdOut[19] = (*(NMEA_Ptrs[timeStamp] + 5));
+			NMEA_status.got_time_field = 1;
+			// for now, always use UTC
+			cmdOut[21] = '+';
+			cmdOut[22] = '0';
+			cmdOut[23] = '0';
+			
+//			if ((NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
+			if (NMEA_status.valid_data) {
 				NMEA_status.valid_time_signal = 1;
 				return 0;
 			} else {
@@ -541,13 +564,12 @@ void sendSetTimeSignal(void) {
 	// 190316       Date of fix  19 March 2016
 	// 203001       Time of fix 20:30:01 UTC
 	// rearrange date digits
+/*
 	if (dateOfFix[4] == '\0') {
 		cmdOut[3] = 'x';
 	} else {
 		cmdOut[3] = dateOfFix[4];
 	}
-	// try this kludge
-//	*(cmdOutPtr + 3) = *(NMEA_Ptrs[dateStamp] + 4);
 	if (dateOfFix[5] == '\0') {
 		cmdOut[4] = 'x';
 		} else {
@@ -574,7 +596,7 @@ void sendSetTimeSignal(void) {
 		cmdOut[10] = dateOfFix[1];
 	}
 	// rearrange time digits
-/*
+
 	if (timeOfFix[0] == '\0') {
 		cmdOut[12] = 'x';
 	} else {
@@ -606,7 +628,7 @@ void sendSetTimeSignal(void) {
 		cmdOut[19] = timeOfFix[5];
 	}
 
-*/
+
 	// try this kludge
 	if (recBuf[7] == '\0') {
 		cmdOut[12] = 'x';
@@ -642,8 +664,8 @@ void sendSetTimeSignal(void) {
 	// for now, always use UTC
 	cmdOut[21] = '+';
 	cmdOut[22] = '0';
-	cmdOut[22] = '0';
-
+	cmdOut[23] = '0';
+*/
 	cmdOutPtr = cmdOut;	
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
@@ -673,6 +695,7 @@ void sendDebugSignal(void) {
 	// debugging diagnostics, put flag characters into the output string
 	if (Prog_status.serial_Received) {
 		*cmdOutPtr = 'r';
+/*		
 		// diagnostics; put the result code of parsing attempt into the output string
 		// shove some flag characters in
 		if (NMEA_status.got_lon_field) 
@@ -687,7 +710,7 @@ void sendDebugSignal(void) {
 			*(cmdOutPtr + 6) = 'G';
 		if (NMEA_status.valid_data)
 			*(cmdOutPtr + 7) = 'V';
-/*
+
 		unsigned char got_lon_field:1;
 		unsigned char got_time_field:1;
 		unsigned char got_date_field:1;
