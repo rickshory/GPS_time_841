@@ -412,32 +412,37 @@ int parseNMEA(void) {
 			}
 			fldCounter++; // point to the next field
 			Prog_status.new_NMEA_Field = 1; // working on a new field
-			} else { // not a comma
+		} else { // not a comma
 			if (Prog_status.new_NMEA_Field == 1) { // we are starting a new field
 				// we have a non-comma character, so the field contains something
 				NMEA_Ptrs[fldCounter] = parsePtr; // plant the field pointer here
 				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
 			}
 		}
-		if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
-			NMEA_status.is_nmea_sentence = 1;
-			// optimize test to fail early if invalid
-			// for testing break down conditions
-			if (*(NMEA_Ptrs[sentenceType] + 4) != 'C') return 6;
-			if (*(NMEA_Ptrs[sentenceType] + 3) != 'M') return 5;
-			if (*(NMEA_Ptrs[sentenceType] + 2) != 'R') return 4;
-			if (*(NMEA_Ptrs[sentenceType] + 1) != 'P') return 3;
-			if (*(NMEA_Ptrs[sentenceType]) != 'G') return 2;
-			// not a sentence type we can use
-		}
-		NMEA_status.is_gprmc_sentence = 1;
-		if (fldCounter > isValid) { // if we've got the validity char, test it
-			if (*(NMEA_Ptrs[isValid]) != 'A') {
-				return 9; // GPS says data not valid
-			} else {
-				NMEA_status.valid_data = 1;
+		if (!(NMEA_status.is_gprmc_sentence)) {
+			if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
+				NMEA_status.is_nmea_sentence = 1;
+				// optimize test to fail early if invalid
+				// for testing break down conditions
+				if (*(NMEA_Ptrs[sentenceType] + 4) != 'C') return 6;
+				if (*(NMEA_Ptrs[sentenceType] + 3) != 'M') return 5;
+				if (*(NMEA_Ptrs[sentenceType] + 2) != 'R') return 4;
+				if (*(NMEA_Ptrs[sentenceType] + 1) != 'P') return 3;
+				if (*(NMEA_Ptrs[sentenceType]) != 'G') return 2;
+				// not a sentence type we can use
+				NMEA_status.is_gprmc_sentence = 1;
 			}
 		}
+		if (!(NMEA_status.valid_data)) {
+			if (fldCounter > isValid) { // if we've got the validity char, test it
+				if (*(NMEA_Ptrs[isValid]) == 'A') {
+					NMEA_status.valid_data = 1;
+				} else {
+					return 9; // GPS says data not valid
+				}
+			}			
+		}
+
 		// copy needed parameters into their own strings; may not ultimately do it this way
 		switch (fldCounter) {
 			case timeStamp:
@@ -519,8 +524,6 @@ ISR(TIMER1_COMPA_vect) {
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
-		
-
 	}
 	
 	// for testing, fake that we got a valid time signal
@@ -528,7 +531,6 @@ ISR(TIMER1_COMPA_vect) {
 	if ((rouseCountdown % 150) == 0) {
 		stateFlags |= (1<<isValidTimeRxFromGPS);
 	}
-		
 	
 	t = rouseCountdown;
 	if (t) rouseCountdown = --t;
@@ -539,8 +541,6 @@ ISR(TIMER1_COMPA_vect) {
 		stateFlags &= ~(1<<isRoused);
 	}
 
-
-	
 	n = Timer1;						// 100Hz decrement timer 
 	if (n) Timer1 = --n;
 	n = Timer2;
