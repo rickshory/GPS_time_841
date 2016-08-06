@@ -563,6 +563,7 @@ void sendSetTimeSignal(void) {
 		cmdOut[10] = dateOfFix[1];
 	}
 	// rearrange time digits
+/*
 	if (timeOfFix[0] == '\0') {
 		cmdOut[12] = 'x';
 	} else {
@@ -592,6 +593,40 @@ void sendSetTimeSignal(void) {
 		cmdOut[19] = 'x';
 		} else {
 		cmdOut[19] = timeOfFix[5];
+	}
+
+*/
+	// try this kludge
+	if (recBuf[7] == '\0') {
+		cmdOut[12] = 'x';
+		} else {
+		cmdOut[12] = recBuf[7];
+	}
+	
+	if (recBuf[8] == '\0') {
+		cmdOut[13] = 'x';
+		} else {
+		cmdOut[13] = recBuf[8];
+	}
+	if (recBuf[9] == '\0') {
+		cmdOut[15] = 'x';
+		} else {
+		cmdOut[15] = recBuf[9];
+	}
+	if (recBuf[10] == '\0') {
+		cmdOut[16] = 'x';
+		} else {
+		cmdOut[16] = recBuf[10];
+	}
+	if (recBuf[11] == '\0') {
+		cmdOut[18] = 'x';
+		} else {
+		cmdOut[18] = recBuf[11];
+	}
+	if (recBuf[12] == '\0') {
+		cmdOut[19] = 'x';
+		} else {
+		cmdOut[19] = recBuf[12];
 	}
 	// for now, always use UTC
 	cmdOut[21] = '+';
