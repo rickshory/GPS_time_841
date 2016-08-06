@@ -493,8 +493,14 @@ int parseNMEA(void) {
 		}
 		
 		if (fldCounter > dateStamp) { // don't need any fields after this
-			NMEA_status.valid_time_signal = 1;
-			return 0;
+			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
+				NMEA_status.valid_time_signal = 1;
+				return 0;
+			} else {
+				return 10;
+			}
+			
+			
 		}
 	}
 }
@@ -505,7 +511,6 @@ void sendSetTimeSignal(void) {
 	// transmit the set-time signal back to the main uC
 	// then set flag(s) to signal this uC to shut down
 
-	cmdOutPtr = cmdOut;
 	// build the set-time command
 	// target format: "t2016-03-19 20:30:01 -08\n\r\n\r\0"
 	// NMEA format examples
@@ -513,85 +518,74 @@ void sendSetTimeSignal(void) {
 	// 203001       Time of fix 20:30:01 UTC
 	// rearrange date digits
 	if (dateOfFix[4] == '\0') {
-		*(cmdOutPtr + 3) = 'x';
+		cmdOut[3] = 'x';
 	} else {
-		*(cmdOutPtr + 3) = dateOfFix[4];
+		cmdOut[3] = dateOfFix[4];
 	}
-//	*(cmdOutPtr + 3) = dateOfFix[4]; 
 	// try this kludge
 //	*(cmdOutPtr + 3) = *(NMEA_Ptrs[dateStamp] + 4);
 	if (dateOfFix[5] == '\0') {
-		*(cmdOutPtr + 4) = 'x';
+		cmdOut[4] = 'x';
 		} else {
-		*(cmdOutPtr + 4) = dateOfFix[5];
+		cmdOut[4] = dateOfFix[5];
 	}
-//	*(cmdOutPtr + 4) = dateOfFix[5];
 	if (dateOfFix[2] == '\0') {
-		*(cmdOutPtr + 6) = 'x';
+		cmdOut[6] = 'x';
 		} else {
-		*(cmdOutPtr + 6) = dateOfFix[2];
+		cmdOut[6] = dateOfFix[2];
 	}
-//	*(cmdOutPtr + 6) = dateOfFix[2];
 	if (dateOfFix[3] == '\0') {
-		*(cmdOutPtr + 7) = 'x';
+		cmdOut[7] = 'x';
 		} else {
-		*(cmdOutPtr + 7) = dateOfFix[3];
+		cmdOut[7] = dateOfFix[3];
 	}
-//	*(cmdOutPtr + 7) = dateOfFix[3];
 	if (dateOfFix[0] == '\0') {
-		*(cmdOutPtr + 9) = 'x';
+		cmdOut[9] = 'x';
 		} else {
-		*(cmdOutPtr + 9) = dateOfFix[0];
+		cmdOut[9] = dateOfFix[0];
 	}
-//	*(cmdOutPtr + 9) = dateOfFix[0];
 	if (dateOfFix[1] == '\0') {
-		*(cmdOutPtr + 10) = 'x';
+		cmdOut[10] = 'x';
 		} else {
-		*(cmdOutPtr + 10) = dateOfFix[1];
+		cmdOut[10] = dateOfFix[1];
 	}
-//	*(cmdOutPtr + 10) = dateOfFix[1];
 	// rearrange time digits
 	if (timeOfFix[0] == '\0') {
-		*(cmdOutPtr + 12) = 'x';
+		cmdOut[12] = 'x';
 	} else {
-		*(cmdOutPtr + 12) = timeOfFix[0];
+		cmdOut[12] = timeOfFix[0];
 	}
-//	*(cmdOutPtr + 12) = timeOfFix[0];
 	if (timeOfFix[1] == '\0') {
-		*(cmdOutPtr + 13) = 'x';
+		cmdOut[13] = 'x';
 		} else {
-		*(cmdOutPtr + 13) = timeOfFix[1];
+		cmdOut[13] = timeOfFix[1];
 	}
-//	*(cmdOutPtr + 13) = timeOfFix[1];
 	if (timeOfFix[2] == '\0') {
-		*(cmdOutPtr + 15) = 'x';
+		cmdOut[15] = 'x';
 		} else {
-		*(cmdOutPtr + 15) = timeOfFix[2];
+		cmdOut[15] = timeOfFix[2];
 	}
-//	*(cmdOutPtr + 15) = timeOfFix[2];
 	if (timeOfFix[3] == '\0') {
-		*(cmdOutPtr + 16) = 'x';
+		cmdOut[16] = 'x';
 		} else {
-		*(cmdOutPtr + 16) = timeOfFix[3];
+		cmdOut[16] = timeOfFix[3];
 	}
-//	*(cmdOutPtr + 16) = timeOfFix[3];
 	if (timeOfFix[4] == '\0') {
-		*(cmdOutPtr + 18) = 'x';
+		cmdOut[18] = 'x';
 		} else {
-		*(cmdOutPtr + 18) = timeOfFix[4];
+		cmdOut[18] = timeOfFix[4];
 	}
-//	*(cmdOutPtr + 18) = timeOfFix[4];
 	if (timeOfFix[5] == '\0') {
-		*(cmdOutPtr + 19) = 'x';
+		cmdOut[19] = 'x';
 		} else {
-		*(cmdOutPtr + 19) = timeOfFix[5];
+		cmdOut[19] = timeOfFix[5];
 	}
-//	*(cmdOutPtr + 19) = timeOfFix[5];
 	// for now, always use UTC
-	*(cmdOutPtr + 21) = '+';
-	*(cmdOutPtr + 22) = '0';
-	*(cmdOutPtr + 23) = '0';
-	
+	cmdOut[21] = '+';
+	cmdOut[22] = '0';
+	cmdOut[22] = '0';
+
+	cmdOutPtr = cmdOut;	
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
 			;
