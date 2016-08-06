@@ -376,11 +376,11 @@ int main(void)
 		// calls a function to send the set-time signal back to the main uC
 		// that function, if successful, will tie things up and end Rouse mode
 		// which will allow this uC to shut down till woken again by Reset
-/* while testing, block this final test
+
 		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
 			sendSetTimeSignal();
 		}
-*/
+
 		// for testing, insert diagnostics
 		if (stateFlags & (1<<isTimeForDebugDiagnostics)) {
 			sendDebugSignal();
@@ -505,7 +505,30 @@ void sendSetTimeSignal(void) {
 	// then set flag(s) to signal this uC to shut down
 
 	cmdOutPtr = cmdOut;
-
+	// build the set-time command
+	// target format: "t2016-03-19 20:30:01 -08\n\r\n\r\0"
+	// NMEA format examples
+	// 190316       Date of fix  19 March 2016
+	// 203001       Time of fix 20:30:01 UTC
+	// rearrange date digits
+	*(cmdOutPtr + 3) = dateOfFix[4]; 
+	*(cmdOutPtr + 4) = dateOfFix[5];
+	*(cmdOutPtr + 6) = dateOfFix[2];
+	*(cmdOutPtr + 7) = dateOfFix[3];
+	*(cmdOutPtr + 9) = dateOfFix[0];
+	*(cmdOutPtr + 10) = dateOfFix[1];
+	// rearrange time digits
+	*(cmdOutPtr + 12) = timeOfFix[0];
+	*(cmdOutPtr + 13) = timeOfFix[1];
+	*(cmdOutPtr + 15) = timeOfFix[2];
+	*(cmdOutPtr + 16) = timeOfFix[3];
+	*(cmdOutPtr + 18) = timeOfFix[4];
+	*(cmdOutPtr + 19) = timeOfFix[5];
+	// for now, always use UTC
+	*(cmdOutPtr + 21) = '+';
+	*(cmdOutPtr + 22) = '0';
+	*(cmdOutPtr + 23) = '0';
+	
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
 			;
