@@ -23,6 +23,7 @@
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
+void sendDebugSignal(void);
 int parseNMEA(void);
 void restoreCmdDefault(void);
 
@@ -100,7 +101,7 @@ enum stateFlagsBits
 	isSerialRxFromGPS, // has some serial data been received from the GPS
 	isValid_NMEA_RxFromGPS, // has some valid NMEA data been received from the GPS
 	isValidTimeRxFromGPS, // has a valid Timestamp been received from the GPS
-	sfBit6, // unused
+	isTimeForDebugDiagnostics, // for testing
 	sfBit7 // unused
 };
 
@@ -359,6 +360,15 @@ int main(void)
 		} // end of go-to-sleep
 
 		// continue main program loop
+		// debugging diagnostics, put flag characters into the output string
+		if (Prog_status.serial_Received) {
+			int n = parseNMEA();
+			if (n==0) {
+				stateFlags |= (1<<isValidTimeRxFromGPS);
+				// in final version, turn off UART and GPS here
+			}
+
+		}
 	
 		// following will be the usual exit point
 		// calls a function to send the set-time signal back to the main uC
@@ -366,6 +376,10 @@ int main(void)
 		// which will allow this uC to shut down till woken again by Reset
 		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
 			sendSetTimeSignal();
+		}
+		// for testing, insert diagnostics
+		if (stateFlags & (1<<isTimeForDebugDiagnostics)) {
+			sendDebugSignal();
 		}
     } // end of 'while(1)' main program loop
 }
@@ -485,6 +499,23 @@ void sendSetTimeSignal(void) {
 	// this will be the usual tie-up point
 	// transmit the set-time signal back to the main uC
 	// then set flag(s) to signal this uC to shut down
+
+	cmdOutPtr = cmdOut;
+
+	while (*cmdOutPtr != '\0') {
+		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
+			;
+		}
+		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
+	}
+
+	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
+}
+
+void sendDebugSignal(void) {
+	// this will be the usual tie-up point
+	// transmit the set-time signal back to the main uC
+	// then set flag(s) to signal this uC to shut down
 	
 	// for testing, send a dummy message
 	/*
@@ -500,8 +531,32 @@ void sendSetTimeSignal(void) {
 	if (Prog_status.serial_Received) {
 		*cmdOutPtr = 'r';
 		// diagnostics; put the result code of parsing attempt into the output string
-		int n = parseNMEA();
+		// shove some flag characters in
+		if (NMEA_status.got_lon_field) 
+			*(cmdOutPtr + 2) = 'L';
+		if (NMEA_status.got_time_field)
+			*(cmdOutPtr + 3) = 'T';
+		if (NMEA_status.got_date_field)
+			*(cmdOutPtr + 4) = 'D';
+		if (NMEA_status.is_nmea_string)
+			*(cmdOutPtr + 5) = 'S';
+		if (NMEA_status.is_gprmc_sentence)
+			*(cmdOutPtr + 6) = 'G';
+		if (NMEA_status.valid_data)
+			*(cmdOutPtr + 7) = 'V';
+/*
+		unsigned char got_lon_field:1;
+		unsigned char got_time_field:1;
+		unsigned char got_date_field:1;
+		unsigned char is_nmea_string:1;
+		unsigned char is_nmea_sentence:1;
+		unsigned char is_gprmc_sentence:1;
+		unsigned char valid_data:1;
+		unsigned char valid_time_signal:1;
+		
 		*(cmdOutPtr + 1 + n) = ('A' + n);
+*/		
+
 	}
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
@@ -510,10 +565,10 @@ void sendSetTimeSignal(void) {
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
 	// reset the following flag, to allow the next periodic diagnostics
-	stateFlags &= ~(1<<isValidTimeRxFromGPS);
+	stateFlags &= ~(1<<isTimeForDebugDiagnostics);
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
-	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
+	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -529,7 +584,7 @@ ISR(TIMER1_COMPA_vect) {
 	// for testing, fake that we got a valid time signal
 	// do this every 1.5 seconds
 	if ((rouseCountdown % 150) == 0) {
-		stateFlags |= (1<<isValidTimeRxFromGPS);
+		stateFlags |= (1<<isTimeForDebugDiagnostics);
 	}
 	
 	t = rouseCountdown;
