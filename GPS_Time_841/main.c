@@ -11,7 +11,7 @@
 #define GPS_TX_BAUD 4800
 #define UC_RX_BAUD 9600
 #define RX_BUF_LEN 128
-#define TX_BUF_LEN 32
+#define TX_BUF_LEN 64
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -44,9 +44,10 @@ A            Navigation receiver warning A = OK, V = warning
 
 // NMEA sentence, for example:
 //$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
-enum NMEA_fields {sentenceType, timeStamp, isValid, curLat, isNorthOrSouth, curLon, isEastOrWest,
+enum NMEA_fields {sentenceType=0, timeStamp, isValid, curLat, isNorthOrSouth, curLon, isEastOrWest,
 speedKnots, trueCourse, dateStamp, magVar, varEastOrWest, checkSum};
-
+//$GPRMC,000143.056,V, , , , , , ,191210,  ,  ,N*42
+//0     ,1         ,2,3,4,5,6,7,8,9     ,10,11,12
 static volatile union Prog_status // Program status bit flags
 {
 	unsigned char status;
