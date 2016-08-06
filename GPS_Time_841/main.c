@@ -118,7 +118,8 @@ static volatile char recBuf[RX_BUF_LEN];
 static volatile char *recBufInPtr;
 static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
-static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions within the captured NMEA sentence
+// array of pointers to field positions within the captured NMEA sentence
+static volatile char *NMEA_Ptrs[checkSum+1]; 
 
 static uint8_t i;
 static char *d;
@@ -414,8 +415,14 @@ void endRouse(void) {
 
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = (char*)recBuf;
-	int fldCounter = sentenceType; // 0th NMEA field
-	NMEA_status.nmea_stat_char = 0; // clear all flags; most are only salient for debugging
+	int fldCounter; // 0th NMEA field
+	NMEA_status.nmea_stat_char = 0; // clear all flags
+	// null all the pointers
+	for (fldCounter = sentenceType; fldCounter <=  checkSum; fldCounter++) {
+		NMEA_Ptrs[fldCounter] = NULL;
+	}
+	// re-initialize
+	fldCounter = sentenceType; // 0th NMEA field
 	// cleanly get the current position of the NMEA buffer pointer
 	cli();
 	endParsePtr = (char*)recBufInPtr;
