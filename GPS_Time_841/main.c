@@ -460,6 +460,8 @@ int parseNMEA(void) {
 				NMEA_status.is_gprmc_sentence = 1;
 			}
 		}
+		
+/*
 		if (!(NMEA_status.valid_data)) {
 			if (fldCounter > isValid) { // if we've got the validity char, test it
 				if (*(NMEA_Ptrs[isValid]) == 'A') {
@@ -469,7 +471,9 @@ int parseNMEA(void) {
 				}
 			}			
 		}
-
+*/
+		NMEA_status.valid_data = 1; // for testing, fake that any string is valid
+		
 		// copy needed parameters into their own strings; may not ultimately do it this way
 		switch (fldCounter) {
 			case timeStamp:
