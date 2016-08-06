@@ -121,10 +121,10 @@ static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions wit
 
 static uint8_t i;
 static char *d;
-static char timeOfFix[7];
-static char longitudeNum[9];
-static char longitudeEorW[2];
-static char dateOfFix[7];
+static volatile char timeOfFix[7];
+static volatile char longitudeNum[9];
+static volatile char longitudeEorW[2];
+static volatile char dateOfFix[7];
 
 
 //pins by package
@@ -366,8 +366,8 @@ int main(void)
 			if (n==0) {
 				stateFlags |= (1<<isValidTimeRxFromGPS);
 				// in final version, turn off UART and GPS here
-			} else {
-				stateFlags &= ~(1<<isValidTimeRxFromGPS);
+//			} else {
+//				stateFlags &= ~(1<<isValidTimeRxFromGPS);
 			}
 
 		}
@@ -379,12 +379,13 @@ int main(void)
 
 		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
 			sendSetTimeSignal();
+		} else {
+			// for testing, insert diagnostics
+			if (stateFlags & (1<<isTimeForDebugDiagnostics)) {
+				sendDebugSignal();
+			}
 		}
 
-		// for testing, insert diagnostics
-		if (stateFlags & (1<<isTimeForDebugDiagnostics)) {
-			sendDebugSignal();
-		}
     } // end of 'while(1)' main program loop
 }
 
@@ -464,18 +465,18 @@ int parseNMEA(void) {
 		// copy needed parameters into their own strings; may not ultimately do it this way
 		switch (fldCounter) {
 			case timeStamp:
-				d = timeOfFix;
+				d = (char*)timeOfFix;
 				NMEA_status.got_time_field = 1;
 				break;
 			case curLon:
-				d = longitudeNum;
+				d = (char*)longitudeNum;
 				NMEA_status.got_lon_field = 1;
 				break;
 			case isEastOrWest:
-				d = longitudeEorW;
+				d = (char*)longitudeEorW;
 				break;
 			case dateStamp:
-				d = dateOfFix;
+				d = (char*)dateOfFix;
 				NMEA_status.got_date_field = 1;
 				break;
 			default:
@@ -512,6 +513,8 @@ void sendSetTimeSignal(void) {
 	// 203001       Time of fix 20:30:01 UTC
 	// rearrange date digits
 	*(cmdOutPtr + 3) = dateOfFix[4]; 
+	// try this kludge
+	*(cmdOutPtr + 3) = *(NMEA_Ptrs[dateStamp] + 4);
 	*(cmdOutPtr + 4) = dateOfFix[5];
 	*(cmdOutPtr + 6) = dateOfFix[2];
 	*(cmdOutPtr + 7) = dateOfFix[3];
