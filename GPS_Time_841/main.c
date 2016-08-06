@@ -366,6 +366,8 @@ int main(void)
 			if (n==0) {
 				stateFlags |= (1<<isValidTimeRxFromGPS);
 				// in final version, turn off UART and GPS here
+			} else {
+				stateFlags &= ~(1<<isValidTimeRxFromGPS);
 			}
 
 		}
@@ -374,9 +376,11 @@ int main(void)
 		// calls a function to send the set-time signal back to the main uC
 		// that function, if successful, will tie things up and end Rouse mode
 		// which will allow this uC to shut down till woken again by Reset
+/* while testing, block this final test
 		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
 			sendSetTimeSignal();
 		}
+*/
 		// for testing, insert diagnostics
 		if (stateFlags & (1<<isTimeForDebugDiagnostics)) {
 			sendDebugSignal();
