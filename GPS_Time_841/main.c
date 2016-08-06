@@ -121,8 +121,8 @@ static volatile char *cmdOutPtr;
 // array of pointers to field positions within the captured NMEA sentence
 static volatile char *NMEA_Ptrs[checkSum+1]; 
 
-static uint8_t i;
-static char *d;
+//static uint8_t i;
+//static char *d;
 static volatile char timeOfFix[12];
 static volatile char longitudeNum[9];
 static volatile char longitudeEorW[2];
@@ -461,7 +461,6 @@ int parseNMEA(void) {
 			}
 		}
 		
-
 		if (!(NMEA_status.valid_data)) {
 			if (fldCounter > isValid) { // if we've got the validity char, test it
 				if (*(NMEA_Ptrs[isValid]) == 'A') {
@@ -519,21 +518,40 @@ int parseNMEA(void) {
 	
 			// try parsing set-time signal right here
 			// parse date
-			cmdOut[3] = (*(NMEA_Ptrs[dateStamp] + 4));
-			cmdOut[4] = (*(NMEA_Ptrs[dateStamp] + 5));
-			cmdOut[6] = (*(NMEA_Ptrs[dateStamp] + 2));
-			cmdOut[7] = (*(NMEA_Ptrs[dateStamp] + 3));
-			cmdOut[9] = (*(NMEA_Ptrs[dateStamp] + 0));
-			cmdOut[10] = (*(NMEA_Ptrs[dateStamp] + 1));
-			NMEA_status.got_date_field = 1;
+			if (NMEA_Ptrs[dateStamp] != NULL) {
+				cmdOut[3] = (*(NMEA_Ptrs[dateStamp] + 4));
+				cmdOut[4] = (*(NMEA_Ptrs[dateStamp] + 5));
+				cmdOut[6] = (*(NMEA_Ptrs[dateStamp] + 2));
+				cmdOut[7] = (*(NMEA_Ptrs[dateStamp] + 3));
+				cmdOut[9] = (*(NMEA_Ptrs[dateStamp] + 0));
+				cmdOut[10] = (*(NMEA_Ptrs[dateStamp] + 1));
+				NMEA_status.got_date_field = 1;
+			} else {
+				cmdOut[3] = 'x';
+				cmdOut[4] = 'x';
+				cmdOut[6] = 'x';
+				cmdOut[7] = 'x';
+				cmdOut[9] = 'x';
+				cmdOut[10] = 'x';
+			}
 			// parse time
-			cmdOut[12] = (*(NMEA_Ptrs[timeStamp] + 0));
-			cmdOut[13] = (*(NMEA_Ptrs[timeStamp] + 1));
-			cmdOut[15] = (*(NMEA_Ptrs[timeStamp] + 2));
-			cmdOut[16] = (*(NMEA_Ptrs[timeStamp] + 3));
-			cmdOut[18] = (*(NMEA_Ptrs[timeStamp] + 4));
-			cmdOut[19] = (*(NMEA_Ptrs[timeStamp] + 5));
-			NMEA_status.got_time_field = 1;
+			if (NMEA_Ptrs[timeStamp] != NULL) {
+				cmdOut[12] = (*(NMEA_Ptrs[timeStamp] + 0));
+				cmdOut[13] = (*(NMEA_Ptrs[timeStamp] + 1));
+				cmdOut[15] = (*(NMEA_Ptrs[timeStamp] + 2));
+				cmdOut[16] = (*(NMEA_Ptrs[timeStamp] + 3));
+				cmdOut[18] = (*(NMEA_Ptrs[timeStamp] + 4));
+				cmdOut[19] = (*(NMEA_Ptrs[timeStamp] + 5));
+				NMEA_status.got_time_field = 1;
+			} else {
+				cmdOut[12] = 'x';
+				cmdOut[13] = 'x';
+				cmdOut[15] = 'x';
+				cmdOut[16] = 'x';
+				cmdOut[18] = 'x';
+				cmdOut[19] = 'x';
+				
+			}
 			// for now, always use UTC
 			cmdOut[21] = '+';
 			cmdOut[22] = '0';
