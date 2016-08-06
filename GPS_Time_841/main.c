@@ -121,14 +121,6 @@ static volatile char *cmdOutPtr;
 // array of pointers to field positions within the captured NMEA sentence
 static volatile char *NMEA_Ptrs[checkSum+1]; 
 
-//static uint8_t i;
-//static char *d;
-static volatile char timeOfFix[12];
-static volatile char longitudeNum[9];
-static volatile char longitudeEorW[2];
-static volatile char dateOfFix[7];
-
-
 //pins by package
 //    PDIP QFN     used for programming
 // PA0 13   5
@@ -410,7 +402,6 @@ void endRouse(void) {
 	stateFlags &= ~(1<<isRoused);
 	PORTA &= ~(1<<LED); // force pilot light off
 	sei();
-	
 }
 
 int parseNMEA(void) {
@@ -471,52 +462,14 @@ int parseNMEA(void) {
 			}			
 		}
 
-/*		
-		// copy needed parameters into their own strings; may not ultimately do it this way
-		switch (fldCounter) {
-			case timeStamp:
-				d = (char*)timeOfFix;
-//				NMEA_status.got_time_field = 1;
-				break;
-			case curLon:
-				d = (char*)longitudeNum;
-//				NMEA_status.got_lon_field = 1;
-				break;
-			case isEastOrWest:
-				d = (char*)longitudeEorW;
-				break;
-			case dateStamp:
-				d = (char*)dateOfFix;
-//				NMEA_status.got_date_field = 1;
-				break;
-			default:
-				d = NULL;
-				break;
-		}
-		if (d != NULL) {
-			switch (fldCounter) {
-				case timeStamp:
-					NMEA_status.got_time_field = 1;
-					break;
-				case dateStamp:
-					NMEA_status.got_date_field = 1;
-					break;
-			}
-			i = 0;
-			while (*(NMEA_Ptrs[fldCounter]+i) != ',') {
-				d[i] = (*(NMEA_Ptrs[fldCounter]+i));
-				i++;
-			}
-			d[i] = '\0';
-		}
-*/		
+
 		if (fldCounter > dateStamp) { // don't need any fields after this
 			// when GPS starts up, it gives the date string as "181210" and 
 			// time string as "235846.nnn", incrementing every second so 
 			// time soon rolls over to "000000.nnn" and date to "191210"
 //			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
 	
-			// try parsing set-time signal right here
+			// try parse set-time signal
 			// parse date
 			if (NMEA_Ptrs[dateStamp] != NULL) {
 				cmdOut[3] = (*(NMEA_Ptrs[dateStamp] + 4));
@@ -564,8 +517,6 @@ int parseNMEA(void) {
 			} else {
 				return 10;
 			}
-			
-			
 		}
 	}
 }
@@ -576,114 +527,6 @@ void sendSetTimeSignal(void) {
 	// transmit the set-time signal back to the main uC
 	// then set flag(s) to signal this uC to shut down
 
-	// build the set-time command
-	// target format: "t2016-03-19 20:30:01 -08\n\r\n\r\0"
-	// NMEA format examples
-	// 190316       Date of fix  19 March 2016
-	// 203001       Time of fix 20:30:01 UTC
-	// rearrange date digits
-/*
-	if (dateOfFix[4] == '\0') {
-		cmdOut[3] = 'x';
-	} else {
-		cmdOut[3] = dateOfFix[4];
-	}
-	if (dateOfFix[5] == '\0') {
-		cmdOut[4] = 'x';
-		} else {
-		cmdOut[4] = dateOfFix[5];
-	}
-	if (dateOfFix[2] == '\0') {
-		cmdOut[6] = 'x';
-		} else {
-		cmdOut[6] = dateOfFix[2];
-	}
-	if (dateOfFix[3] == '\0') {
-		cmdOut[7] = 'x';
-		} else {
-		cmdOut[7] = dateOfFix[3];
-	}
-	if (dateOfFix[0] == '\0') {
-		cmdOut[9] = 'x';
-		} else {
-		cmdOut[9] = dateOfFix[0];
-	}
-	if (dateOfFix[1] == '\0') {
-		cmdOut[10] = 'x';
-		} else {
-		cmdOut[10] = dateOfFix[1];
-	}
-	// rearrange time digits
-
-	if (timeOfFix[0] == '\0') {
-		cmdOut[12] = 'x';
-	} else {
-		cmdOut[12] = timeOfFix[0];
-	}
-	if (timeOfFix[1] == '\0') {
-		cmdOut[13] = 'x';
-		} else {
-		cmdOut[13] = timeOfFix[1];
-	}
-	if (timeOfFix[2] == '\0') {
-		cmdOut[15] = 'x';
-		} else {
-		cmdOut[15] = timeOfFix[2];
-	}
-	if (timeOfFix[3] == '\0') {
-		cmdOut[16] = 'x';
-		} else {
-		cmdOut[16] = timeOfFix[3];
-	}
-	if (timeOfFix[4] == '\0') {
-		cmdOut[18] = 'x';
-		} else {
-		cmdOut[18] = timeOfFix[4];
-	}
-	if (timeOfFix[5] == '\0') {
-		cmdOut[19] = 'x';
-		} else {
-		cmdOut[19] = timeOfFix[5];
-	}
-
-
-	// try this kludge
-	if (recBuf[7] == '\0') {
-		cmdOut[12] = 'x';
-		} else {
-		cmdOut[12] = recBuf[7];
-	}
-	
-	if (recBuf[8] == '\0') {
-		cmdOut[13] = 'x';
-		} else {
-		cmdOut[13] = recBuf[8];
-	}
-	if (recBuf[9] == '\0') {
-		cmdOut[15] = 'x';
-		} else {
-		cmdOut[15] = recBuf[9];
-	}
-	if (recBuf[10] == '\0') {
-		cmdOut[16] = 'x';
-		} else {
-		cmdOut[16] = recBuf[10];
-	}
-	if (recBuf[11] == '\0') {
-		cmdOut[18] = 'x';
-		} else {
-		cmdOut[18] = recBuf[11];
-	}
-	if (recBuf[12] == '\0') {
-		cmdOut[19] = 'x';
-		} else {
-		cmdOut[19] = recBuf[12];
-	}
-	// for now, always use UTC
-	cmdOut[21] = '+';
-	cmdOut[22] = '0';
-	cmdOut[23] = '0';
-*/
 	cmdOutPtr = cmdOut;	
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
@@ -765,7 +608,7 @@ ISR(TIMER1_COMPA_vect) {
 		ToggleCountdown = TOGGLE_INTERVAL;
 	}
 	
-	// for testing, fake that we got a valid time signal
+	// for testing, show what's currently in the set-time signal
 	// do this every 1.5 seconds
 	if ((rouseCountdown % 150) == 0) {
 		stateFlags |= (1<<isTimeForDebugDiagnostics);
