@@ -121,7 +121,7 @@ static volatile char *NMEA_Ptrs[13]; // array of pointers to field positions wit
 
 static uint8_t i;
 static char *d;
-static volatile char timeOfFix[7];
+static volatile char timeOfFix[12];
 static volatile char longitudeNum[9];
 static volatile char longitudeEorW[2];
 static volatile char dateOfFix[7];
@@ -493,6 +493,9 @@ int parseNMEA(void) {
 		}
 		
 		if (fldCounter > dateStamp) { // don't need any fields after this
+			// when GPS starts up, it gives the date string as "181210" and 
+			// time string as "235846.nnn", incrementing every second so 
+			// time soon rolls over to "000000.nnn" and date to "191210"
 			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
 				NMEA_status.valid_time_signal = 1;
 				return 0;
