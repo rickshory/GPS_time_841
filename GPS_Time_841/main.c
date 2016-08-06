@@ -512,21 +512,81 @@ void sendSetTimeSignal(void) {
 	// 190316       Date of fix  19 March 2016
 	// 203001       Time of fix 20:30:01 UTC
 	// rearrange date digits
-	*(cmdOutPtr + 3) = dateOfFix[4]; 
+	if (dateOfFix[4] == '\0') {
+		*(cmdOutPtr + 3) = 'x';
+	} else {
+		*(cmdOutPtr + 3) = dateOfFix[4];
+	}
+//	*(cmdOutPtr + 3) = dateOfFix[4]; 
 	// try this kludge
-	*(cmdOutPtr + 3) = *(NMEA_Ptrs[dateStamp] + 4);
-	*(cmdOutPtr + 4) = dateOfFix[5];
-	*(cmdOutPtr + 6) = dateOfFix[2];
-	*(cmdOutPtr + 7) = dateOfFix[3];
-	*(cmdOutPtr + 9) = dateOfFix[0];
-	*(cmdOutPtr + 10) = dateOfFix[1];
+//	*(cmdOutPtr + 3) = *(NMEA_Ptrs[dateStamp] + 4);
+	if (dateOfFix[5] == '\0') {
+		*(cmdOutPtr + 4) = 'x';
+		} else {
+		*(cmdOutPtr + 4) = dateOfFix[5];
+	}
+//	*(cmdOutPtr + 4) = dateOfFix[5];
+	if (dateOfFix[2] == '\0') {
+		*(cmdOutPtr + 6) = 'x';
+		} else {
+		*(cmdOutPtr + 6) = dateOfFix[2];
+	}
+//	*(cmdOutPtr + 6) = dateOfFix[2];
+	if (dateOfFix[3] == '\0') {
+		*(cmdOutPtr + 7) = 'x';
+		} else {
+		*(cmdOutPtr + 7) = dateOfFix[3];
+	}
+//	*(cmdOutPtr + 7) = dateOfFix[3];
+	if (dateOfFix[0] == '\0') {
+		*(cmdOutPtr + 9) = 'x';
+		} else {
+		*(cmdOutPtr + 9) = dateOfFix[0];
+	}
+//	*(cmdOutPtr + 9) = dateOfFix[0];
+	if (dateOfFix[1] == '\0') {
+		*(cmdOutPtr + 10) = 'x';
+		} else {
+		*(cmdOutPtr + 10) = dateOfFix[1];
+	}
+//	*(cmdOutPtr + 10) = dateOfFix[1];
 	// rearrange time digits
-	*(cmdOutPtr + 12) = timeOfFix[0];
-	*(cmdOutPtr + 13) = timeOfFix[1];
-	*(cmdOutPtr + 15) = timeOfFix[2];
-	*(cmdOutPtr + 16) = timeOfFix[3];
-	*(cmdOutPtr + 18) = timeOfFix[4];
-	*(cmdOutPtr + 19) = timeOfFix[5];
+	if (timeOfFix[0] == '\0') {
+		*(cmdOutPtr + 12) = 'x';
+	} else {
+		*(cmdOutPtr + 12) = timeOfFix[0];
+	}
+//	*(cmdOutPtr + 12) = timeOfFix[0];
+	if (timeOfFix[1] == '\0') {
+		*(cmdOutPtr + 13) = 'x';
+		} else {
+		*(cmdOutPtr + 13) = timeOfFix[1];
+	}
+//	*(cmdOutPtr + 13) = timeOfFix[1];
+	if (timeOfFix[2] == '\0') {
+		*(cmdOutPtr + 15) = 'x';
+		} else {
+		*(cmdOutPtr + 15) = timeOfFix[2];
+	}
+//	*(cmdOutPtr + 15) = timeOfFix[2];
+	if (timeOfFix[3] == '\0') {
+		*(cmdOutPtr + 16) = 'x';
+		} else {
+		*(cmdOutPtr + 16) = timeOfFix[3];
+	}
+//	*(cmdOutPtr + 16) = timeOfFix[3];
+	if (timeOfFix[4] == '\0') {
+		*(cmdOutPtr + 18) = 'x';
+		} else {
+		*(cmdOutPtr + 18) = timeOfFix[4];
+	}
+//	*(cmdOutPtr + 18) = timeOfFix[4];
+	if (timeOfFix[5] == '\0') {
+		*(cmdOutPtr + 19) = 'x';
+		} else {
+		*(cmdOutPtr + 19) = timeOfFix[5];
+	}
+//	*(cmdOutPtr + 19) = timeOfFix[5];
 	// for now, always use UTC
 	*(cmdOutPtr + 21) = '+';
 	*(cmdOutPtr + 22) = '0';
