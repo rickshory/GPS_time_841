@@ -467,24 +467,32 @@ int parseNMEA(void) {
 		switch (fldCounter) {
 			case timeStamp:
 				d = (char*)timeOfFix;
-				NMEA_status.got_time_field = 1;
+//				NMEA_status.got_time_field = 1;
 				break;
 			case curLon:
 				d = (char*)longitudeNum;
-				NMEA_status.got_lon_field = 1;
+//				NMEA_status.got_lon_field = 1;
 				break;
 			case isEastOrWest:
 				d = (char*)longitudeEorW;
 				break;
 			case dateStamp:
 				d = (char*)dateOfFix;
-				NMEA_status.got_date_field = 1;
+//				NMEA_status.got_date_field = 1;
 				break;
 			default:
 				d = NULL;
 				break;
 		}
 		if (d != NULL) {
+			switch (fldCounter) {
+				case timeStamp:
+					NMEA_status.got_time_field = 1;
+					break;
+				case dateStamp:
+					NMEA_status.got_date_field = 1;
+					break;
+			}
 			i = 0;
 			while (*(NMEA_Ptrs[fldCounter]+i) != ',') {
 				d[i] = (*(NMEA_Ptrs[fldCounter]+i));
@@ -497,7 +505,8 @@ int parseNMEA(void) {
 			// when GPS starts up, it gives the date string as "181210" and 
 			// time string as "235846.nnn", incrementing every second so 
 			// time soon rolls over to "000000.nnn" and date to "191210"
-			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
+//			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
+			if ((NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
 				NMEA_status.valid_time_signal = 1;
 				return 0;
 			} else {
