@@ -406,7 +406,7 @@ void endRouse(void) {
 
 int parseNMEA(void) {
 	char *endParsePtr, *parsePtr = (char*)recBuf;
-	int fldCounter; // 0th NMEA field
+	int fldCounter;
 	NMEA_status.nmea_stat_char = 0; // clear all flags
 	// null all the pointers
 	for (fldCounter = sentenceType; fldCounter <= checkSum; fldCounter++) {
@@ -437,7 +437,7 @@ int parseNMEA(void) {
 				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
 			}
 		}
-		if (!(NMEA_status.is_gprmc_sentence)) {
+		if (!(NMEA_status.is_gprmc_sentence)) { // don't need to test multiple times
 			if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
 				NMEA_status.is_nmea_sentence = 1;
 				// optimize test to fail early if invalid
@@ -452,7 +452,7 @@ int parseNMEA(void) {
 			}
 		}
 		
-		if (!(NMEA_status.valid_data)) {
+		if (!(NMEA_status.valid_data)) { // don't need to test multiple times
 			if (fldCounter > isValid) { // if we've got the validity char, test it
 				if (*(NMEA_Ptrs[isValid]) == 'A') {
 					NMEA_status.valid_data = 1;
@@ -467,9 +467,12 @@ int parseNMEA(void) {
 			// when GPS starts up, it gives the date string as "181210" and 
 			// time string as "235846.nnn", incrementing every second so 
 			// time soon rolls over to "000000.nnn" and date to "191210"
+			// This means the GPS will be providing readable dates/times before they are valid
+			// Parse them here, to use for diagnostics, but don't send the final set-time signal
+			//  until the GPS signals that data are valid
 //			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
 	
-			// try parse set-time signal
+			// parse the set-time signal
 			// parse date
 			if (NMEA_Ptrs[dateStamp] != NULL) {
 				cmdOut[3] = (*(NMEA_Ptrs[dateStamp] + 4));
@@ -539,51 +542,12 @@ void sendSetTimeSignal(void) {
 }
 
 void sendDebugSignal(void) {
-	// this will be the usual tie-up point
-	// transmit the set-time signal back to the main uC
-	// then set flag(s) to signal this uC to shut down
-	
-	// for testing, send a dummy message
-	/*
-	// wait for the transmit buffer to be empty
-	while (!(UCSR1A & (1<<TXC1))) { // bit is set when Tx shift register is empty
-		;
-	}
-	// write a 1 to clear the Transmit Complete bit
-	UCSR1A &= (1<<TXC1);
-	*/
+
+	// for testing, send the current attempt at the set-time message
 	cmdOutPtr = cmdOut;
 	// debugging diagnostics, put flag characters into the output string
 	if (Prog_status.serial_Received) {
 		*cmdOutPtr = 'r';
-/*		
-		// diagnostics; put the result code of parsing attempt into the output string
-		// shove some flag characters in
-		if (NMEA_status.got_lon_field) 
-			*(cmdOutPtr + 2) = 'L';
-		if (NMEA_status.got_time_field)
-			*(cmdOutPtr + 3) = 'T';
-		if (NMEA_status.got_date_field)
-			*(cmdOutPtr + 4) = 'D';
-		if (NMEA_status.is_nmea_string)
-			*(cmdOutPtr + 5) = 'S';
-		if (NMEA_status.is_gprmc_sentence)
-			*(cmdOutPtr + 6) = 'G';
-		if (NMEA_status.valid_data)
-			*(cmdOutPtr + 7) = 'V';
-
-		unsigned char got_lon_field:1;
-		unsigned char got_time_field:1;
-		unsigned char got_date_field:1;
-		unsigned char is_nmea_string:1;
-		unsigned char is_nmea_sentence:1;
-		unsigned char is_gprmc_sentence:1;
-		unsigned char valid_data:1;
-		unsigned char valid_time_signal:1;
-		
-		*(cmdOutPtr + 1 + n) = ('A' + n);
-*/		
-
 	}
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
