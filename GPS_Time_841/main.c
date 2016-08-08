@@ -516,6 +516,9 @@ int parseNMEA(void) {
 //			if ((NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
 			if (NMEA_status.valid_data) {
 				NMEA_status.valid_time_signal = 1;
+				// shut down UART
+				UCSR0B = 0;
+//				UCSR1B = 0;
 				return 0;
 			} else {
 				return 10;
