@@ -513,20 +513,21 @@ int parseNMEA(void) {
 			cmdOut[22] = '0';
 			cmdOut[23] = '0';
 			
-//			if ((NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
-			if (NMEA_status.valid_data) {
-				NMEA_status.valid_time_signal = 1;
-				// shut down UART
-				UCSR0B = 0;
-//				UCSR1B = 0;
-				return 0;
-			} else {
-				return 10;
-			}
-		}
-	}
+			if (!(NMEA_status.got_date_field))
+				return 11;
+			if (!(NMEA_status.got_time_field))
+				return 12;
+			if (!(NMEA_status.valid_data))
+				return 13;
+				
+			// all tests passed
+			NMEA_status.valid_time_signal = 1;
+			// shut down the UART that is Rx from the GPS
+			UCSR0B = 0;
+			return 0;
+		} // end of if (fldCounter > dateStamp)
+	} // end of while(1)
 }
-
 
 void sendSetTimeSignal(void) {
 	// this will be the usual tie-up point
