@@ -301,6 +301,7 @@ int main(void)
 /*	*/		
 			if (stateFlags & (1<<setTimeCommandSent)) {
 				// go to sleep
+				endRouse();
 				PORTA &= ~(1<<LED); // turn off pilot light blinkey
 			
 				// shut down UARTs
