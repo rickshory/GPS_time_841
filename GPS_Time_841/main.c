@@ -19,6 +19,13 @@
 #include <string.h>
 #include <avr/sleep.h>
 
+typedef struct {
+	char * const buffer;
+	int head;
+	int tail;
+	const int maxLen;
+} circBuf_t;
+
 // function prototypes
 void stayRoused(uint16_t dSec);
 void endRouse(void);
@@ -26,6 +33,9 @@ void sendSetTimeSignal(void);
 void sendDebugSignal(void);
 int parseNMEA(void);
 void restoreCmdDefault(void);
+int circBufPut(circBuf_t *c, char d);
+int circBufGet(circBuf_t *c, char *d);
+
 
 /*
 example
@@ -48,6 +58,7 @@ enum NMEA_fields {sentenceType=0, timeStamp, isValid, curLat, isNorthOrSouth, cu
 speedKnots, trueCourse, dateStamp, magVar, varEastOrWest, checkSum};
 //$GPRMC,000143.056,V, , , , , , ,191210,  ,  ,N*42
 //0     ,1         ,2,3,4,5,6,7,8,9     ,10,11,12
+
 static volatile union Prog_status // Program status bit flags
 {
 	unsigned char status;
@@ -568,6 +579,29 @@ void sendDebugSignal(void) {
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
 	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
+}
+
+int circBufPut(circBuf_t *c, char d) {
+	int nx = c->head + 1;
+	if (nx >= c->maxLen)
+		nx = 0;
+	if (nx == c->tail)
+		return 1; // buffer is full
+	c->buffer[c->head] = d;
+	c->head = nx;
+	return 0;
+}
+
+int circBufGet(circBuf_t *c, char *d) {
+	if (c->head == c->tail)
+		return 1; // buffer is empty
+	*d = c->buffer[c->tail];
+	c->buffer[c->tail] = '\0';
+	int nx = c->tail + 1;
+	if (nx > c->maxLen)
+		nx = 0;
+	c->tail = nx;
+	return 0;
 }
 
 ISR(TIMER1_COMPA_vect) {
