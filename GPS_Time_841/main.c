@@ -26,6 +26,8 @@ typedef struct {
 	const int maxLen;
 } circBuf_t;
 
+#define CIRCBUF_DEF(x,y) char x##_space[y]; circBuf_t x = { x##_space,0,0,y}
+
 // function prototypes
 void stayRoused(uint16_t dSec);
 void endRouse(void);
@@ -124,12 +126,14 @@ volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sl
 volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
 static volatile char receiveByte;
-static volatile char recBuf[RX_BUF_LEN];
+//static volatile char recBuf[RX_BUF_LEN];
 static volatile char *recBufInPtr;
 static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 // array of pointers to field positions within the captured NMEA sentence
-static volatile char *NMEA_Ptrs[checkSum+1]; 
+static volatile char *NMEA_Ptrs[checkSum+1];
+
+CIRCBUF_DEF(recBuf, RX_BUF_LEN);
 
 //pins by package
 //    PDIP QFN     used for programming
@@ -593,14 +597,18 @@ int circBufPut(circBuf_t *c, char d) {
 }
 
 int circBufGet(circBuf_t *c, char *d) {
-	if (c->head == c->tail)
+	cli(); // don't let the Rx interrupt interfere
+	if (c->head == c->tail) {
+		sei();
 		return 1; // buffer is empty
+	}
 	*d = c->buffer[c->tail];
 	c->buffer[c->tail] = '\0';
 	int nx = c->tail + 1;
 	if (nx > c->maxLen)
 		nx = 0;
 	c->tail = nx;
+	sei();
 	return 0;
 }
 
