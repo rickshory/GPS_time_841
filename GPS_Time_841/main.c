@@ -82,14 +82,14 @@ static volatile union NMEA_status // NMEA status bit flags
 	unsigned char nmea_stat_char;
 	struct
 	{
-		unsigned char got_lon_field:1;
-		unsigned char got_time_field:1;
-		unsigned char got_date_field:1;
-		unsigned char is_nmea_string:1;
-		unsigned char is_nmea_sentence:1;
-		unsigned char is_gprmc_sentence:1;
+		unsigned char use_nmea:1;
 		unsigned char valid_data:1;
-		unsigned char valid_time_signal:1;
+		unsigned char bit2:1;
+		unsigned char bit3:1;
+		unsigned char bit4:1;
+		unsigned char bit5:1;
+		unsigned char bit6:1;
+		unsigned char bit7:1;
 	};
 	} NMEA_status = {0};
 
@@ -125,13 +125,8 @@ volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blin
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
-//static volatile char receiveByte;
-//static volatile char recBuf[RX_BUF_LEN];
-static volatile char *recBufInPtr;
-static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
+static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
-// array of pointers to field positions within the captured NMEA sentence
-static volatile char *NMEA_Ptrs[checkSum+1];
 static volatile int fldCounter;
 static volatile int posCounter;
 
@@ -309,6 +304,10 @@ int main(void)
 	// set the global interrupt enable bit.
 	sei();
 	
+	// set initial conditions for capturing serial NMEA data
+	NMEA_status.use_nmea = 0; // do not try to parse until start-of-sentence found
+	NMEA_status.valid_data = 0; // not valid data yet
+	
 	stayRoused(1000); // stay roused for 10 seconds
 
     while (1) 
@@ -425,135 +424,73 @@ void endRouse(void) {
 }
 
 int parseNMEA(void) {
+	// when GPS starts up, it gives the date string as "181210" and
+	// time string as "235846.nnn", incrementing every second so
+	// time soon rolls over to "000000.nnn" and date to "191210"
+	// This means the GPS will be providing readable dates/times before they are valid
+	// Parse them here, to use for diagnostics, but don't send the final set-time signal
+	//  until the GPS signals that data are valid
 	char ch;
 	while (1) {
 		if (circBufGet(&recBuf, &ch)) {
-			return 0;
+			return 1;
 		}
-		
+		if (ch == '$') { // NMEA sentences begin with '$'
+			NMEA_status.use_nmea = 1; // tentatively, the NMEA string is one to use
+			fldCounter = sentenceType; // this first field is 'sentenceType'
+		}
+		if (NMEA_status.use_nmea) { // most characters will be thrown away, skip this loop
+			if (ch == '\n') { // end of the line
+				NMEA_status.use_nmea = 0; // skip characters till next '$' found
+				if (NMEA_status.valid_data) { // we are done, begin shutdown
+					UCSR0B = 0; // turn off the UART that is Rx from the GPS
+					return 0;
+				} // else continue getting characters
+			} else { // not end-of-line
+				if (ch == ',') { // field delimiter
+					fldCounter++; // refer to the next field in order
+					posCounter = -1; // start of field, but this delimiter is not part of it
+				} else { // a regular data character
+					posCounter++; // refer to the next position within the current field
+					// test various field/position details
+					switch (fldCounter) {
+						case sentenceType: // check that sentence type is "GPRMC"; all begin with "GP"
+							if (((posCounter == 2) && (ch != 'R')) || 
+								((posCounter == 3) && (ch != 'M')) || 
+								((posCounter == 4) && (ch != 'C')))
+								NMEA_status.use_nmea = 0; // ignore characters till next '$' found
+							break;
+						case timeStamp: // "hhmmss"; copy, in between ':' positions
+							if (posCounter == 0) cmdOut[12] = ch;
+							if (posCounter == 1) cmdOut[13] = ch;
+							if (posCounter == 2) cmdOut[15] = ch;
+							if (posCounter == 3) cmdOut[16] = ch;
+							if (posCounter == 4) cmdOut[18] = ch;
+							if (posCounter == 5) cmdOut[19] = ch;
+							break;
+						case isValid:
+							if ((posCounter == 0) && (ch == 'A'))
+								NMEA_status.valid_data = 1; // GPS says data valid
+							break;
+						case curLon: // for now, always use Universal time; may calc timezone later from longitude
+							cmdOut[21] = '+';
+							cmdOut[22] = '0';
+							cmdOut[23] = '0';
+							break;
+						case dateStamp: // "ddmmyy"; rearrange and copy, in between '-' positions
+										// to make "20yy-mm-dd"
+							if (posCounter == 4) cmdOut[3] = ch;
+							if (posCounter == 5) cmdOut[4] = ch;
+							if (posCounter == 2) cmdOut[6] = ch;
+							if (posCounter == 3) cmdOut[7] = ch;
+							if (posCounter == 0) cmdOut[9] = ch;
+							if (posCounter == 1) cmdOut[10] = ch;
+							break;
+					} // end of switch (fldCounter)
+				} // regular data character
+			} // not end of line
+		}
 	}
-	char *endParsePtr, *parsePtr = (char*)recBuf;
-	
-	NMEA_status.nmea_stat_char = 0; // clear all flags
-	// null all the pointers
-	for (fldCounter = sentenceType; fldCounter <= checkSum; fldCounter++) {
-		NMEA_Ptrs[fldCounter] = NULL;
-	}
-	// re-initialize
-	fldCounter = sentenceType; // 0th NMEA field
-	// cleanly get the current position of the NMEA buffer pointer
-	cli();
-	endParsePtr = (char*)recBufInPtr;
-	sei();
-	Prog_status.new_NMEA_Field = 1; // we are starting to work on the first field
-	while (1) {
-		if (parsePtr++ > endParsePtr) { // if we can't complete the parsing
-			return 1; // exit, flag that it failed
-		}
-		if (*parsePtr == ',') { // the field delimiter
-			if (Prog_status.new_NMEA_Field == 1) { // we just started working on a field and
-				// encountered a comma indicating the next field, so the current field is empty
-				NMEA_Ptrs[fldCounter] = NULL;
-			}
-			fldCounter++; // point to the next field
-			Prog_status.new_NMEA_Field = 1; // working on a new field
-		} else { // not a comma
-			if (Prog_status.new_NMEA_Field == 1) { // we are starting a new field
-				// we have a non-comma character, so the field contains something
-				NMEA_Ptrs[fldCounter] = parsePtr; // plant the field pointer here
-				Prog_status.new_NMEA_Field = 0; // the field is now no longer new
-			}
-		}
-		if (!(NMEA_status.is_gprmc_sentence)) { // don't need to test multiple times
-			if (fldCounter > sentenceType) { // if we've got sentence-type complete, test for "GPRMC"
-				NMEA_status.is_nmea_sentence = 1;
-				// optimize test to fail early if invalid
-				// for testing break down conditions
-				if (*(NMEA_Ptrs[sentenceType] + 4) != 'C') return 6;
-				if (*(NMEA_Ptrs[sentenceType] + 3) != 'M') return 5;
-				if (*(NMEA_Ptrs[sentenceType] + 2) != 'R') return 4;
-				if (*(NMEA_Ptrs[sentenceType] + 1) != 'P') return 3;
-				if (*(NMEA_Ptrs[sentenceType]) != 'G') return 2;
-				// not a sentence type we can use
-				NMEA_status.is_gprmc_sentence = 1;
-			}
-		}
-		
-		if (!(NMEA_status.valid_data)) { // don't need to test multiple times
-			if (fldCounter > isValid) { // if we've got the validity char, test it
-				if (*(NMEA_Ptrs[isValid]) == 'A') {
-					NMEA_status.valid_data = 1;
-				} else {
-//					return 9; // GPS says data not valid
-				}
-			}			
-		}
-
-
-		if (fldCounter > dateStamp) { // don't need any fields after this
-			// when GPS starts up, it gives the date string as "181210" and 
-			// time string as "235846.nnn", incrementing every second so 
-			// time soon rolls over to "000000.nnn" and date to "191210"
-			// This means the GPS will be providing readable dates/times before they are valid
-			// Parse them here, to use for diagnostics, but don't send the final set-time signal
-			//  until the GPS signals that data are valid
-//			if ((NMEA_status.valid_data) && (NMEA_status.got_date_field) && (NMEA_status.got_time_field)) {
-	
-			// parse the set-time signal
-			// parse date
-			if (NMEA_Ptrs[dateStamp] != NULL) {
-				cmdOut[3] = (*(NMEA_Ptrs[dateStamp] + 4));
-				cmdOut[4] = (*(NMEA_Ptrs[dateStamp] + 5));
-				cmdOut[6] = (*(NMEA_Ptrs[dateStamp] + 2));
-				cmdOut[7] = (*(NMEA_Ptrs[dateStamp] + 3));
-				cmdOut[9] = (*(NMEA_Ptrs[dateStamp] + 0));
-				cmdOut[10] = (*(NMEA_Ptrs[dateStamp] + 1));
-				NMEA_status.got_date_field = 1;
-			} else {
-				cmdOut[3] = 'x';
-				cmdOut[4] = 'x';
-				cmdOut[6] = 'x';
-				cmdOut[7] = 'x';
-				cmdOut[9] = 'x';
-				cmdOut[10] = 'x';
-			}
-			// parse time
-			if (NMEA_Ptrs[timeStamp] != NULL) {
-				cmdOut[12] = (*(NMEA_Ptrs[timeStamp] + 0));
-				cmdOut[13] = (*(NMEA_Ptrs[timeStamp] + 1));
-				cmdOut[15] = (*(NMEA_Ptrs[timeStamp] + 2));
-				cmdOut[16] = (*(NMEA_Ptrs[timeStamp] + 3));
-				cmdOut[18] = (*(NMEA_Ptrs[timeStamp] + 4));
-				cmdOut[19] = (*(NMEA_Ptrs[timeStamp] + 5));
-				NMEA_status.got_time_field = 1;
-			} else {
-				cmdOut[12] = 'x';
-				cmdOut[13] = 'x';
-				cmdOut[15] = 'x';
-				cmdOut[16] = 'x';
-				cmdOut[18] = 'x';
-				cmdOut[19] = 'x';
-				
-			}
-			// for now, always use UTC
-			cmdOut[21] = '+';
-			cmdOut[22] = '0';
-			cmdOut[23] = '0';
-			
-			if (!(NMEA_status.got_date_field))
-				return 11;
-			if (!(NMEA_status.got_time_field))
-				return 12;
-			if (!(NMEA_status.valid_data))
-				return 13;
-				
-			// all tests passed
-			NMEA_status.valid_time_signal = 1;
-			// shut down the UART that is Rx from the GPS
-			UCSR0B = 0;
-			return 0;
-		} // end of if (fldCounter > dateStamp)
-	} // end of while(1)
 }
 
 void sendSetTimeSignal(void) {
