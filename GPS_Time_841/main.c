@@ -650,14 +650,9 @@ ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
 	// *recBufInPtr++ = UDR0; // basic task, put the character in the buffer
 	char receiveByte = UDR0;
-	if (receiveByte == '$') { // beginning of NMEA sentence
-		recBufInPtr = recBuf; // point to start of buffer
-	}
-	*recBufInPtr++ = receiveByte; // put character in buffer
-	Prog_status.serial_Received = 1; // flag that serial is being received
-	// if overrun for some reason, wrap; probably bad data anyway and will be repeated
-	if (recBufInPtr >= (recBuf + RX_BUF_LEN)) {
-		recBufInPtr = recBuf; // wrap overflow to start of buffer
+	if (circBufPut(&recBuf, receiveByte)) {
+		; // if full, drop; ISR can't return anything
+		// Rx data will be repeated
 	}
 }
 
