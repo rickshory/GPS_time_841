@@ -382,7 +382,6 @@ int main(void)
 //			} else {
 //				stateFlags &= ~(1<<isValidTimeRxFromGPS);
 			}
-
 		}
 	
 		// following will be the usual exit point
@@ -439,8 +438,8 @@ int parseNMEA(void) {
 			NMEA_status.use_nmea = 1; // tentatively, the NMEA string is one to use
 			fldCounter = sentenceType; // this first field is 'sentenceType'
 		}
-		if (NMEA_status.use_nmea) { // most characters will be thrown away, skip this loop
-			if (ch == '\n') { // end of the line
+		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
+			if (ch == 0x0d) { // end of the line
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
 				if (NMEA_status.valid_data) { // we are done, begin shutdown
 					UCSR0B = 0; // turn off the UART that is Rx from the GPS
@@ -594,12 +593,12 @@ ISR(TIMER1_COMPA_vect) {
 
 ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
-	// *recBufInPtr++ = UDR0; // basic task, put the character in the buffer
 	char receiveByte = UDR0;
 	if (circBufPut(&recBuf, receiveByte)) {
 		; // if full, drop; ISR can't return anything
 		// Rx data will be repeated
 	}
+	Prog_status.serial_Received = 1; // flag that serial is being received
 }
 
 void restoreCmdDefault(void) {
