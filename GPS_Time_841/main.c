@@ -125,13 +125,15 @@ volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blin
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
-static volatile char receiveByte;
+//static volatile char receiveByte;
 //static volatile char recBuf[RX_BUF_LEN];
 static volatile char *recBufInPtr;
 static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0";
 static volatile char *cmdOutPtr;
 // array of pointers to field positions within the captured NMEA sentence
 static volatile char *NMEA_Ptrs[checkSum+1];
+static volatile int fldCounter;
+static volatile int posCounter;
 
 CIRCBUF_DEF(recBuf, RX_BUF_LEN);
 
@@ -423,8 +425,15 @@ void endRouse(void) {
 }
 
 int parseNMEA(void) {
+	char ch;
+	while (1) {
+		if (circBufGet(&recBuf, &ch)) {
+			return 0;
+		}
+		
+	}
 	char *endParsePtr, *parsePtr = (char*)recBuf;
-	int fldCounter;
+	
 	NMEA_status.nmea_stat_char = 0; // clear all flags
 	// null all the pointers
 	for (fldCounter = sentenceType; fldCounter <= checkSum; fldCounter++) {
