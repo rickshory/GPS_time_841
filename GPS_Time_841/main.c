@@ -440,9 +440,9 @@ int parseNMEA(void) {
 			posCounter = -1; // start of field, but this initiator is not parsed yet
 		}
 		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
-			if (ch == '*') { // terminate at star before checksum
+			if (ch == 0x0d) { // terminate at newline
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
-				if (NMEA_status.valid_data) { // we are done, begin shutdown
+				if (NMEA_status.valid_data) { // if valid timestamp, we are done, begin shutdown
 					UCSR0B = 0; // turn off the UART that is Rx from the GPS
 					return 0;
 				} // else continue getting characters
