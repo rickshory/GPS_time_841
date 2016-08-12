@@ -467,16 +467,17 @@ int parseNMEA(void) {
 							if (posCounter == 3) cmdOut[16] = ch;
 							if (posCounter == 4) cmdOut[18] = ch;
 							if (posCounter == 5) cmdOut[19] = ch;
+							// for now, always use Universal time; may calc timezone later from longitude
+							cmdOut[21] = '+';
+							cmdOut[22] = '0';
+							cmdOut[23] = '0';
 							break;
 						case isValid:
 							if ((posCounter == 0) && (ch == 'A'))
 								NMEA_status.valid_data = 1; // GPS says data valid
 							break;
-						case curLon: // for now, always use Universal time; may calc timezone later from longitude
-							cmdOut[21] = '+';
-							cmdOut[22] = '0';
-							cmdOut[23] = '0';
-							break;
+//						case curLon: 
+//							break;
 						case dateStamp: // "ddmmyy"; rearrange and copy, in between '-' positions
 										// to make "20yy-mm-dd"
 							if (posCounter == 4) cmdOut[3] = ch;
