@@ -439,7 +439,8 @@ int parseNMEA(void) {
 			fldCounter = sentenceType; // this first field is 'sentenceType'
 		}
 		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
-			if (ch == 0x0d) { // end of the line
+//			if (ch == 0x0d) { // end of the line
+			if (ch == '*') { // try terminating with star before checksum
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
 				if (NMEA_status.valid_data) { // we are done, begin shutdown
 					UCSR0B = 0; // turn off the UART that is Rx from the GPS
