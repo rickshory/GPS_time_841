@@ -454,10 +454,10 @@ int parseNMEA(void) {
 					// test various field/position details
 					switch (fldCounter) {
 						case sentenceType: // check that sentence type is "GPRMC"; all begin with "GP"
-							if (((posCounter == 2) && (ch != 'R')) || 
-								((posCounter == 3) && (ch != 'M')) || 
-								((posCounter == 4) && (ch != 'C')))
-								NMEA_status.use_nmea = 0; // ignore characters till next '$' found
+							// if not "GPRMC", ignore characters till next '$' found
+							if ((posCounter == 2) && (ch != 'R')) NMEA_status.use_nmea = 0;
+							if ((posCounter == 3) && (ch != 'M')) NMEA_status.use_nmea = 0;
+							if ((posCounter == 4) && (ch != 'C')) NMEA_status.use_nmea = 0; 
 							break;
 						case timeStamp: // "hhmmss"; copy, in between ':' positions
 							if (posCounter == 0) cmdOut[12] = ch;
