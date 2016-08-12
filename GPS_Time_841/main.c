@@ -84,8 +84,8 @@ static volatile union NMEA_status // NMEA status bit flags
 	{
 		unsigned char use_nmea:1;
 		unsigned char valid_data:1;
-		unsigned char bit2:1;
-		unsigned char bit3:1;
+		unsigned char captureNMEA:1;
+		unsigned char bufferFull:1;
 		unsigned char bit4:1;
 		unsigned char bit5:1;
 		unsigned char bit6:1;
@@ -127,6 +127,7 @@ volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
 static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
+static volatile int captureCounter;
 static volatile int fldCounter;
 static volatile int posCounter;
 
@@ -305,6 +306,7 @@ int main(void)
 	sei();
 	
 	// set initial conditions for capturing serial NMEA data
+	NMEA_status.captureNMEA = 0; // do not even capture to buffer until first sentence found
 	NMEA_status.use_nmea = 0; // do not try to parse until start-of-sentence found
 	NMEA_status.valid_data = 0; // not valid data yet
 	
@@ -487,9 +489,9 @@ int parseNMEA(void) {
 							if (posCounter == 0) cmdOut[9] = ch;
 							if (posCounter == 1) cmdOut[10] = ch;
 							break;
-						case magVar: // don't need this field, or any after
-							NMEA_status.use_nmea = 0; // skip characters till next '$' found
-							break;
+//						case magVar: // don't need this field, or any after
+//							NMEA_status.use_nmea = 0; // skip characters till next '$' found
+//							break;
 					} // end of switch (fldCounter)
 				} // regular data character
 			} // not end of line
@@ -599,9 +601,19 @@ ISR(TIMER1_COMPA_vect) {
 ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
 	char receiveByte = UDR0;
-	if (circBufPut(&recBuf, receiveByte)) {
-		; // if full, drop; ISR can't return anything
-		// Rx data will be repeated
+	if (receiveByte == '$') { // start of NMEA sentence
+		NMEA_status.captureNMEA = 1; // flag to start capturing
+		captureCounter = -1; // no chars counted yet
+	}
+	captureCounter++;
+	if ((captureCounter == 3) && (receiveByte != 'R')) // cannot be a "$GPRMC" sentence
+		NMEA_status.captureNMEA = 0; // stop capturing
+	if (NMEA_status.captureNMEA) { // try to store the character
+		if (circBufPut(&recBuf, receiveByte)) {
+			NMEA_status.bufferFull = 1; // if full, drop; ISR can't return anything; Rx data will be repeated
+		} else {
+			NMEA_status.bufferFull = 0;
+		}		
 	}
 	Prog_status.serial_Received = 1; // flag that serial is being received
 }
