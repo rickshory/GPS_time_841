@@ -437,6 +437,7 @@ int parseNMEA(void) {
 		if (ch == '$') { // NMEA sentences begin with '$'
 			NMEA_status.use_nmea = 1; // tentatively, the NMEA string is one to use
 			fldCounter = sentenceType; // this first field is 'sentenceType'
+			posCounter = -1; // start of field, but this initiator is not parsed yet
 		}
 		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
 			if (ch == '*') { // terminate at star before checksum
@@ -455,9 +456,9 @@ int parseNMEA(void) {
 					switch (fldCounter) {
 						case sentenceType: // check that sentence type is "GPRMC"; all begin with "GP"
 							// if not "GPRMC", ignore characters till next '$' found
-							if ((posCounter == 2) && (ch != 'R')) NMEA_status.use_nmea = 0;
-							if ((posCounter == 3) && (ch != 'M')) NMEA_status.use_nmea = 0;
-							if ((posCounter == 4) && (ch != 'C')) NMEA_status.use_nmea = 0; 
+							if ((posCounter == 3) && (ch != 'R')) NMEA_status.use_nmea = 0;
+							if ((posCounter == 4) && (ch != 'M')) NMEA_status.use_nmea = 0;
+							if ((posCounter == 5) && (ch != 'C')) NMEA_status.use_nmea = 0; 
 							break;
 						case timeStamp: // "hhmmss"; copy, in between ':' positions
 							if (posCounter == 0) cmdOut[12] = ch;
