@@ -58,8 +58,6 @@ A            Navigation receiver warning A = OK, V = warning
 //$GPRMC,110919.000,A,4532.1047,N,12234.3348,W,1.98,169.54,090316,,,A*77
 enum NMEA_fields {sentenceType=0, timeStamp, isValid, curLat, isNorthOrSouth, curLon, isEastOrWest,
 speedKnots, trueCourse, dateStamp, magVar, varEastOrWest, checkSum};
-//$GPRMC,000143.056,V, , , , , , ,191210,  ,  ,N*42
-//0     ,1         ,2,3,4,5,6,7,8,9     ,10,11,12
 
 static volatile union Prog_status // Program status bit flags
 {
@@ -70,9 +68,9 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char gps_Power_Enabled:1;
 		unsigned char gps_Being_Pulsed:1;
 		unsigned char listen_To_GPS:1;
-		unsigned char cur_Rx_Bit:1;
-		unsigned char cmd_Tx_ongoing:1;
-		unsigned char new_NMEA_Field:1;
+		unsigned char bit4:1;
+		unsigned char bit5:1;
+		unsigned char bit6:1;
 		unsigned char serial_Received:1;
 	};
 } Prog_status = {0};
@@ -91,7 +89,7 @@ static volatile union NMEA_status // NMEA status bit flags
 		unsigned char bit6:1;
 		unsigned char bit7:1;
 	};
-	} NMEA_status = {0};
+} NMEA_status = {0};
 
 enum machStates
 {
@@ -100,8 +98,8 @@ enum machStates
 	WakedFromSleep, // first test on wake from sleep
 	TimerInitialized, // Timer1 has been initialized
 	PoweredOnGPS, // the GPS has been powered on
-	SerialRxFromGPS, // Serial data has been received from the GPS
-	ValidNMEARxFromGPS, // Valid NMEA data has been received from the GPS
+//	SerialRxFromGPS, // Serial data has been received from the GPS
+//	ValidNMEARxFromGPS, // Valid NMEA data has been received from the GPS
 	ValidTimeRxFromGPS, // Valid timestamp has been received from the GPS
 	PoweredOffGPS // the GPS has been powered off
 };
@@ -118,8 +116,24 @@ enum stateFlagsBits
 	isTimeForDebugDiagnostics // for testing
 };
 
+static volatile union stateFlags // status bit flags
+{
+	unsigned char stat_char;
+	struct
+	{
+		unsigned char isRoused:1; // triggered by initiating Reset, and re-triggered by any activity while awake
+		unsigned char reRoused:1; // re-triggered while awake, used to reset timeout
+		unsigned char isGPSPowerOn:1; // is the GPS powered on
+		unsigned char isSerialRxFromGPS:1; // has some serial data been received from the GPS
+		unsigned char isValid_NMEA_RxFromGPS:1; // has some valid NMEA data been received from the GPS
+		unsigned char isValidTimeRxFromGPS:1; // has a valid Timestamp been received from the GPS
+		unsigned char setTimeCommandSent:1; // final set-time command has been sent
+		unsigned char isTimeForDebugDiagnostics:1; // for testing
+	};
+} stateFlags = {0};
+
 volatile uint8_t machineState, GpsOnAttempts = 0, GpsOffAttempts = 0;
-volatile uint8_t stateFlags = 0;
+//volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
@@ -314,10 +328,10 @@ int main(void)
 
     while (1) 
     {
-		if (!(stateFlags & (1<<isRoused))) {
+		if (!(stateFlags.isRoused)) {
 			stayRoused(1000); // for testing, keep awake
 /*	*/		
-			if (stateFlags & (1<<setTimeCommandSent)) {
+			if (stateFlags.setTimeCommandSent) {
 				// go to sleep
 				endRouse();
 				PORTA &= ~(1<<LED); // turn off pilot light blinkey
@@ -379,10 +393,10 @@ int main(void)
 		if (Prog_status.serial_Received) {
 			int n = parseNMEA();
 			if (n==0) {
-				stateFlags |= (1<<isValidTimeRxFromGPS);
+				stateFlags.isValidTimeRxFromGPS = 1;
 				// in final version, turn off UART and GPS here
 //			} else {
-//				stateFlags &= ~(1<<isValidTimeRxFromGPS);
+//				stateFlags.isValidTimeRxFromGPS = 0;
 			}
 		}
 	
@@ -391,11 +405,11 @@ int main(void)
 		// that function, if successful, will tie things up and end Rouse mode
 		// which will allow this uC to shut down till woken again by Reset
 
-		if (stateFlags & (1<<isValidTimeRxFromGPS)) {
+		if (stateFlags.isValidTimeRxFromGPS) {
 			sendSetTimeSignal();
 		} else {
 			// for testing, insert diagnostics
-			if (stateFlags & (1<<isTimeForDebugDiagnostics)) {
+			if (stateFlags.isTimeForDebugDiagnostics) {
 				sendDebugSignal();
 			}
 		}
@@ -410,7 +424,7 @@ void stayRoused(uint16_t dSec)
 	if ((dSec) > rouseCountdown) { // never trim the rouse interval, only extend it
 		rouseCountdown = dSec;
 	}
-	stateFlags |= (1<<isRoused);
+	stateFlags.isRoused = 1;
 	PORTA |= (1<<LED); // set pilot light on
 	sei();
 }
@@ -419,7 +433,7 @@ void endRouse(void) {
 	cli(); // temporarily disable interrupts to prevent Timer1 from
 	// changing the count partway through
 	rouseCountdown = 0;
-	stateFlags &= ~(1<<isRoused);
+	stateFlags.isRoused = 0;
 	PORTA &= ~(1<<LED); // force pilot light off
 	sei();
 }
@@ -511,7 +525,7 @@ void sendSetTimeSignal(void) {
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
-	stateFlags |= (1<<setTimeCommandSent);
+	stateFlags.setTimeCommandSent = 1;
 
 	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
 }
@@ -531,7 +545,7 @@ void sendDebugSignal(void) {
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
 	// reset the following flag, to allow the next periodic diagnostics
-	stateFlags &= ~(1<<isTimeForDebugDiagnostics);
+	stateFlags.isTimeForDebugDiagnostics = 0;
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
 	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
@@ -577,7 +591,7 @@ ISR(TIMER1_COMPA_vect) {
 	// for testing, show what's currently in the set-time signal
 	// do this every 1.5 seconds
 	if ((rouseCountdown % 150) == 0) {
-		stateFlags |= (1<<isTimeForDebugDiagnostics);
+		stateFlags.isTimeForDebugDiagnostics = 1;
 	}
 	
 	t = rouseCountdown;
@@ -586,7 +600,7 @@ ISR(TIMER1_COMPA_vect) {
 	//	if (--rouseCountdown <= 0)
 	if (!rouseCountdown)
 	{
-		stateFlags &= ~(1<<isRoused);
+		stateFlags.isRoused = 0;
 	}
 
 	n = Timer1;						// 100Hz decrement timer 
