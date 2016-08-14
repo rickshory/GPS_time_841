@@ -394,7 +394,8 @@ int main(void)
 		// which will allow this uC to shut down till woken again by Reset
 
 		if (stateFlags.isValidTimeRxFromGPS) {
-			sendSetTimeSignal();
+			if (!(stateFlags.setTimeCommandSent)) // only send signal once
+				sendSetTimeSignal();
 		} else {
 			// for testing, insert diagnostics
 			if (stateFlags.isTimeForDebugDiagnostics) {
