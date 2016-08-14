@@ -104,18 +104,6 @@ enum machStates
 	PoweredOffGPS // the GPS has been powered off
 };
 
-enum stateFlagsBits
-{
-	isRoused, // triggered by initiating Reset, and re-triggered by any activity while awake
-	reRoused, // re-triggered while awake, used to reset timeout
-	isGPSPowerOn, // is the GPS powered on
-	isSerialRxFromGPS, // has some serial data been received from the GPS
-	isValid_NMEA_RxFromGPS, // has some valid NMEA data been received from the GPS
-	isValidTimeRxFromGPS, // has a valid Timestamp been received from the GPS
-	setTimeCommandSent, // final set-time command has been sent
-	isTimeForDebugDiagnostics // for testing
-};
-
 static volatile union stateFlags // status bit flags
 {
 	unsigned char stat_char;
