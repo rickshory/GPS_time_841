@@ -10,7 +10,7 @@
 #define TOGGLE_INTERVAL 100
 #define GPS_TX_BAUD 4800
 #define UC_RX_BAUD 9600
-#define RX_BUF_LEN 256
+#define RX_BUF_LEN 128
 #define TX_BUF_LEN 64
 
 #include <avr/io.h>
