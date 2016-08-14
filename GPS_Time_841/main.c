@@ -448,7 +448,6 @@ int parseNMEA(void) {
 			if (ch == 0x0d) { // terminate at newline
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
 				if (NMEA_status.valid_data) { // if valid timestamp, we are done, begin shutdown
-					UCSR0B = 0; // turn off the UART that is Rx from the GPS
 					return 0;
 				} // else continue getting characters
 			} else { // not end-of-line
@@ -603,6 +602,9 @@ ISR(TIMER1_COMPA_vect) {
 
 ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
+	Prog_status.serial_Received = 1; // flag that serial is being received
+	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
+		return; // don't capture anything any more
 	char receiveByte = UDR0;
 	if (receiveByte == '$') { // start of NMEA sentence
 		NMEA_status.captureNMEA = 1; // flag to start capturing
@@ -618,7 +620,6 @@ ISR(USART0_RX_vect) {
 			NMEA_status.bufferFull = 0;
 		}		
 	}
-	Prog_status.serial_Received = 1; // flag that serial is being received
 }
 
 void restoreCmdDefault(void) {
