@@ -127,7 +127,7 @@ volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blin
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
-static volatile char cmdOut[TX_BUF_LEN] = "t2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
+static volatile char cmdOut[TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
 static volatile int captureCounter;
 static volatile int fldCounter;
@@ -505,7 +505,8 @@ void sendSetTimeSignal(void) {
 	// this will be the usual tie-up point
 	// transmit the set-time signal back to the main uC
 	// then set flag(s) to signal this uC to shut down
-
+	
+	cmdOut[0]='t'; // set this command character only now
 	cmdOutPtr = cmdOut;	
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
@@ -513,7 +514,7 @@ void sendSetTimeSignal(void) {
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
-	stateFlags.setTimeCommandSent = 1;
+	stateFlags.setTimeCommandSent = 1; // flag that it is done
 
 	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
 }
@@ -624,7 +625,7 @@ ISR(USART0_RX_vect) {
 
 void restoreCmdDefault(void) {
 	// restore the output buffer to its default 't2016-03-19 20:30:01 -08'
-	cmdOut[0] = 't';
+	cmdOut[0] = 'x';
 	cmdOut[1] = '2';
 	cmdOut[2] = '0';
 	cmdOut[3] = '1';
