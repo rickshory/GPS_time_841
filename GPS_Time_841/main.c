@@ -70,8 +70,8 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char listen_To_GPS:1;
 		unsigned char bit4:1;
 		unsigned char bit5:1;
-		unsigned char bit6:1;
-		unsigned char serial_Received:1;
+		unsigned char main_serial_Received:1;
+		unsigned char gps_serial_Received:1;
 	};
 } Prog_status = {0};
 
@@ -274,14 +274,14 @@ int main(void)
 	UCSR0C = (3<<UCSZ00);
 	//UCSR0D, leave default 0, do not let Rx wake this uC
 
-	// Set USART1 to transmit to the main uC Rx
+	// Set USART1 to Tx/Rx with the main uC
 	// set USART1 baud rate
 	UcRxUbrr = 51; // (F_CPU/(16 * UC_RX_BAUD))-1 for main uC Rx at 9600 baud
 	UBRR1H = (unsigned char)(UcRxUbrr>>8);
 	UBRR1L = (unsigned char)UcRxUbrr;
-	// set USART1 to transmit
+	// set USART1 to transmit and receive
 	// UCSR1A, use defaults
-	UCSR1B = (1<<TXEN1); // use defaults except for this
+	UCSR1B = (1<<RXEN1)|(1<<TXEN1); // use defaults except for these
 	// set USART1 frame format: 8data, 1stop bit
 	UCSR1C = (3<<UCSZ10);
 	//UCSR1D, leave default 0, do not let Rx wake this uC
@@ -378,7 +378,7 @@ int main(void)
 
 		// continue main program loop
 		// debugging diagnostics, put flag characters into the output string
-		if (Prog_status.serial_Received) {
+		if (Prog_status.gps_serial_Received) {
 			int n = parseNMEA();
 			if (n==0) {
 				stateFlags.isValidTimeRxFromGPS = 1;
@@ -516,7 +516,7 @@ void sendSetTimeSignal(void) {
 	}
 	stateFlags.setTimeCommandSent = 1; // flag that it is done
 
-	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
+	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
 }
 
 void sendDebugSignal(void) {
@@ -524,7 +524,7 @@ void sendDebugSignal(void) {
 	// for testing, send the current attempt at the set-time message
 	cmdOutPtr = cmdOut;
 	// debugging diagnostics, put flag characters into the output string
-	if (Prog_status.serial_Received) {
+	if (Prog_status.gps_serial_Received) {
 		*cmdOutPtr = 'r';
 	}
 	while (*cmdOutPtr != '\0') {
@@ -537,7 +537,7 @@ void sendDebugSignal(void) {
 	stateFlags.isTimeForDebugDiagnostics = 0;
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
-	Prog_status.serial_Received = 0; // clear the flag that says serial has been received
+	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
 }
 
 int circBufPut(circBuf_t *c, char d) {
@@ -603,7 +603,7 @@ ISR(TIMER1_COMPA_vect) {
 
 ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
-	Prog_status.serial_Received = 1; // flag that serial is being received
+	Prog_status.gps_serial_Received = 1; // flag that serial is being received
 	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
 		return; // don't capture anything any more
 	char receiveByte = UDR0;
