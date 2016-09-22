@@ -10,8 +10,9 @@
 #define TOGGLE_INTERVAL 100
 #define GPS_TX_BAUD 4800
 #define UC_RX_BAUD 9600
-#define RX_BUF_LEN 128
-#define TX_BUF_LEN 64
+#define GPS_RX_BUF_LEN 128
+#define MAIN_RX_BUF_LEN 32
+#define MAIN_TX_BUF_LEN 64
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -127,13 +128,14 @@ volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blin
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
-static volatile char cmdOut[TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
+static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
 static volatile int captureCounter;
 static volatile int fldCounter;
 static volatile int posCounter;
 
-CIRCBUF_DEF(recBuf, RX_BUF_LEN);
+CIRCBUF_DEF(gps_recBuf, GPS_RX_BUF_LEN);
+CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 //pins by package
 //    PDIP QFN     used for programming
@@ -436,7 +438,7 @@ int parseNMEA(void) {
 	//  until the GPS signals that data are valid
 	char ch;
 	while (1) {
-		if (circBufGet(&recBuf, &ch)) {
+		if (circBufGet(&gps_recBuf, &ch)) {
 			return 1;
 		}
 		if (ch == '$') { // NMEA sentences begin with '$'
@@ -606,16 +608,16 @@ ISR(USART0_RX_vect) {
 	Prog_status.gps_serial_Received = 1; // flag that serial is being received
 	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
 		return; // don't capture anything any more
-	char receiveByte = UDR0;
-	if (receiveByte == '$') { // start of NMEA sentence
+	char gps_receiveByte = UDR0;
+	if (gps_receiveByte == '$') { // start of NMEA sentence
 		NMEA_status.captureNMEA = 1; // flag to start capturing
 		captureCounter = -1; // no chars counted yet
 	}
 	captureCounter++;
-	if ((captureCounter == 3) && (receiveByte != 'R')) // cannot be a "$GPRMC" sentence
+	if ((captureCounter == 3) && (gps_receiveByte != 'R')) // cannot be a "$GPRMC" sentence
 		NMEA_status.captureNMEA = 0; // stop capturing
 	if (NMEA_status.captureNMEA) { // try to store the character
-		if (circBufPut(&recBuf, receiveByte)) {
+		if (circBufPut(&gps_recBuf, gps_receiveByte)) {
 			NMEA_status.bufferFull = 1; // if full, drop; ISR can't return anything; Rx data will be repeated
 		} else {
 			NMEA_status.bufferFull = 0;
