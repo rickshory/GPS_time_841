@@ -92,6 +92,22 @@ static volatile union NMEA_status // NMEA status bit flags
 	};
 } NMEA_status = {0};
 
+static volatile union cmd_status // main Rx/Tx command status bit flags
+{
+	unsigned char cmd_stat_char;
+	struct
+	{
+		unsigned char use_cmd:1;
+		unsigned char valid_cmd_data:1;
+		unsigned char capture_cmd:1;
+		unsigned char buffer_full:1;
+		unsigned char pwr_gps_on:1;
+		unsigned char pulse_gps:1;
+		unsigned char bit6:1;
+		unsigned char bit7:1;
+	};
+	} cmd_status = {0};
+
 enum machStates
 {
 	Asleep = 0,
@@ -130,7 +146,8 @@ volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
 
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
-static volatile int captureCounter;
+static volatile int nmea_capture_counter;
+static volatile int cmd_capture_ctr;
 static volatile int fldCounter;
 static volatile int posCounter;
 
@@ -611,10 +628,10 @@ ISR(USART0_RX_vect) {
 	char gps_receiveByte = UDR0;
 	if (gps_receiveByte == '$') { // start of NMEA sentence
 		NMEA_status.captureNMEA = 1; // flag to start capturing
-		captureCounter = -1; // no chars counted yet
+		nmea_capture_counter = -1; // no chars counted yet
 	}
-	captureCounter++;
-	if ((captureCounter == 3) && (gps_receiveByte != 'R')) // cannot be a "$GPRMC" sentence
+	nmea_capture_counter++;
+	if ((nmea_capture_counter == 3) && (gps_receiveByte != 'R')) // cannot be a "$GPRMC" sentence
 		NMEA_status.captureNMEA = 0; // stop capturing
 	if (NMEA_status.captureNMEA) { // try to store the character
 		if (circBufPut(&gps_recBuf, gps_receiveByte)) {
@@ -622,6 +639,29 @@ ISR(USART0_RX_vect) {
 		} else {
 			NMEA_status.bufferFull = 0;
 		}		
+	}
+}
+
+ISR(USART1_RX_vect) {
+	// occurs when USART1 Rx Complete
+	Prog_status.main_serial_Received = 1; // flag that serial is being received from the main uC
+	// for now, leave in the following test
+	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
+	 return; // don't capture anything any more
+	char main_receive_byte = UDR1;
+	if (main_receive_byte == '\n') { // end of line
+		cmd_status.capture_cmd = 1; // flag to start capturing
+		cmd_capture_ctr = -1; // no chars counted yet
+	}
+	cmd_capture_ctr++;
+	if ((cmd_capture_ctr == 3) && (main_receive_byte != 'R')) // cannot be a "$GPRMC" sentence
+	cmd_status.capture_cmd = 0; // stop capturing
+	if (cmd_status.capture_cmd) { // try to store the character
+		if (circBufPut(&main_recBuf, main_receive_byte)) {
+			cmd_status.buffer_full = 1; // if full, drop; ISR can't return anything; Rx data will be repeated
+			} else {
+			cmd_status.buffer_full = 0;
+		}
 	}
 }
 
