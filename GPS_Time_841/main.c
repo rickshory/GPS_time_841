@@ -645,10 +645,14 @@ ISR(USART0_RX_vect) {
 ISR(USART1_RX_vect) {
 	// occurs when USART1 Rx Complete
 	Prog_status.main_serial_Received = 1; // flag that serial is being received from the main uC
+	// for now, only flag that some character received, don't even store it
+/*
 	// for now, leave in the following test
 	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
 	 return; // don't capture anything any more
-	char main_receive_byte = UDR1;
+*/
+//	char main_receive_byte = UDR1;
+/*
 	if (main_receive_byte == '\n') { // end of line
 		cmd_status.capture_cmd = 1; // flag to start capturing
 		cmd_capture_ctr = -1; // no chars counted yet
@@ -663,6 +667,7 @@ ISR(USART1_RX_vect) {
 			cmd_status.buffer_full = 0;
 		}
 	}
+*/	
 }
 
 void restoreCmdDefault(void) {
