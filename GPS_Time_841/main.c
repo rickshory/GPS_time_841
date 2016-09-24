@@ -113,7 +113,7 @@ enum machStates
 	Asleep = 0, // default on chip reset
 	Initializing,  // setting up timer, usarts, etc.
 	WaitingForMain, // waiting to Rx serial from main uC, prevents run-on if not in-system
-	TurningOnGPS, // attempting to power up and wake GPS module
+	TurningOnGPS, // attempting to power up and wake the GPS module
 	ParsingNMEA, // attempting to extract a valid time signal from GPS NMEA data
 	TurningOffGPS, // attempting to systematically shut down the GPS module
 	ShuttingDown // preparing for sleep; sub-states depend of status flags
@@ -140,7 +140,7 @@ volatile uint8_t machineState = Asleep, GpsOnAttempts = 0, GpsOffAttempts = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
-volatile uint8_t Timer1, Timer2, Timer3;	// 100Hz decrement timer
+volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
@@ -615,11 +615,14 @@ ISR(TIMER1_COMPA_vect) {
 
 	n = Timer1;						// 100Hz decrement timer 
 	if (n) Timer1 = --n;
+	// can use for in-loop delay by using following format:
+	//	for (Timer1 = 3; Timer1; );	// Wait for 30ms
+/*
 	n = Timer2;
 	if (n) Timer2 = --n;
 	n = Timer3;
 	if (n) Timer3 = --n;
-
+*/
 }
 
 ISR(USART0_RX_vect) {
