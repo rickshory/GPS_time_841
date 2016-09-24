@@ -110,15 +110,13 @@ static volatile union cmd_status // main Rx/Tx command status bit flags
 
 enum machStates
 {
-	Asleep = 0,
-	Idle,  // done with work but not yet allowed to go to sleep
-	WakedFromSleep, // first test on wake from sleep
-	TimerInitialized, // Timer1 has been initialized
-	PoweredOnGPS, // the GPS has been powered on
-//	SerialRxFromGPS, // Serial data has been received from the GPS
-//	ValidNMEARxFromGPS, // Valid NMEA data has been received from the GPS
-	ValidTimeRxFromGPS, // Valid timestamp has been received from the GPS
-	PoweredOffGPS // the GPS has been powered off
+	Asleep = 0, // default on chip reset
+	Initializing,  // setting up timer, usarts, etc.
+	WaitingForMain, // waiting to Rx serial from main uC, prevents run-on if not in-system
+	TurningOnGPS, // attempting to power up and wake GPS module
+	ParsingNMEA, // attempting to extract a valid time signal from GPS NMEA data
+	TurningOffGPS, // attempting to systematically shut down the GPS module
+	ShuttingDown // preparing for sleep; sub-states depend of status flags
 };
 
 static volatile union stateFlags // status bit flags
@@ -137,7 +135,7 @@ static volatile union stateFlags // status bit flags
 	};
 } stateFlags = {0};
 
-volatile uint8_t machineState, GpsOnAttempts = 0, GpsOffAttempts = 0;
+volatile uint8_t machineState = Asleep, GpsOnAttempts = 0, GpsOffAttempts = 0;
 //volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
@@ -181,6 +179,7 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
+	machineState = Initializing;
 	uint16_t GpsTxUbrr, UcRxUbrr;
 
 	// set up to blink an LED
@@ -332,6 +331,9 @@ int main(void)
 	NMEA_status.valid_data = 0; // not valid data yet
 	
 	stayRoused(1000); // stay roused for 10 seconds
+	
+	machineState = WaitingForMain; // waiting to Rx serial from main uC, prevents run-on if not in-system
+	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
 
     while (1) 
     {
