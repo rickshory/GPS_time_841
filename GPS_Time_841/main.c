@@ -335,12 +335,55 @@ int main(void)
 	machineState = WaitingForMain; // waiting to Rx serial from main uC, prevents run-on if not in-system
 	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
 
-    while (1) 
-    {
+    while (1) {
+		stayRoused(3000); // stay roused for 30 seconds
+		if (machineState == WaitingForMain) { 
+			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
+			if (Prog_status.main_serial_Received) {
+				machineState = TurningOnGPS;
+			}
+			// if nothing receive in 30 seconds, shut down
+			if (!(stateFlags.isRoused)) {
+				machineState = ShuttingDown;
+			}
+		}
+		if (machineState == TurningOnGPS) {
+			// try 3 times to turn on GPS
+			// if successful, go to (machineState = ParsingNMEA)
+			// if not, shut down
+			;
+		}
+			
 		if (!(stateFlags.isRoused)) {
-			stayRoused(1000); // for testing, keep awake
-/*	*/		
-			if (stateFlags.setTimeCommandSent) {
+			 // for testing, keep awake
+
+			
+
+
+
+		if (machineState == ParsingNMEA) {
+			// following will be the usual exit point
+			// calls a function to send the set-time signal back to the main uC
+			// that function, if successful, will tie things up and end Rouse mode
+			// which will allow this uC to shut down till woken again by Reset			
+			
+			
+			if (stateFlags.isValidTimeRxFromGPS) {
+				if (!(stateFlags.setTimeCommandSent)) // only send signal once
+				sendSetTimeSignal(); // internally sets stateFlags.setTimeCommandSent and machineState = TurningOffGPS
+				} else {
+				// for testing, insert diagnostics
+				if (stateFlags.isTimeForDebugDiagnostics) {
+					sendDebugSignal();
+				}
+			}
+		}
+		
+		if (machineState == TurningOffGPS) {
+			;
+		}
+
+			if (machineState == ShuttingDown) {
 				// go to sleep
 				endRouse();
 				PORTA &= ~(1<<LED); // turn off pilot light blinkey
@@ -393,8 +436,6 @@ int main(void)
 				// go intoPower-down mode SLEEP
 				asm("sleep");
 			}
-
-/*	*/
 		} // end of go-to-sleep
 
 		// continue main program loop
@@ -408,22 +449,6 @@ int main(void)
 //				stateFlags.isValidTimeRxFromGPS = 0;
 			}
 		}
-	
-		// following will be the usual exit point
-		// calls a function to send the set-time signal back to the main uC
-		// that function, if successful, will tie things up and end Rouse mode
-		// which will allow this uC to shut down till woken again by Reset
-
-		if (stateFlags.isValidTimeRxFromGPS) {
-			if (!(stateFlags.setTimeCommandSent)) // only send signal once
-				sendSetTimeSignal();
-		} else {
-			// for testing, insert diagnostics
-			if (stateFlags.isTimeForDebugDiagnostics) {
-				sendDebugSignal();
-			}
-		}
-
     } // end of 'while(1)' main program loop
 }
 
