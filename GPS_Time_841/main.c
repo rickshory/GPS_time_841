@@ -70,7 +70,7 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char gps_Being_Pulsed:1;
 		unsigned char listen_To_GPS:1;
 		unsigned char bit4:1;
-		unsigned char bit5:1;
+		unsigned char wait_for_main_Rx_started:1;
 		unsigned char main_serial_Received:1;
 		unsigned char gps_serial_Received:1;
 	};
@@ -336,9 +336,14 @@ int main(void)
 	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
 
     while (1) {
-		stayRoused(3000); // stay roused for 30 seconds
+		
 		if (machineState == WaitingForMain) { 
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
+			if (!Prog_status.wait_for_main_Rx_started) {
+				stayRoused(3000); // stay roused for 30 seconds
+				Prog_status.wait_for_main_Rx_started = 1;
+			}
+			
 			if (Prog_status.main_serial_Received) {
 				machineState = TurningOnGPS;
 			}
