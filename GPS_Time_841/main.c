@@ -358,6 +358,7 @@ int main(void)
 			// if successful, go to (machineState = ParsingNMEA)
 			// if not, shut down
 			uint8_t GpsOnAttempts;
+			PORTB |= (1<<GPS_PWR); // enable power to GPS module
 			for (Timer1 = 100; Timer1; );	// wait for 1 second initially
 			for( GpsOnAttempts = 0; GpsOnAttempts <= 3; GpsOnAttempts++ ){
 				PORTB |= (1<<PULSE_GPS); // set high
@@ -406,12 +407,14 @@ int main(void)
 				stateFlags.isSerialRxFromGPS = 0; // clear flag
 				for (Timer1 = 100; Timer1; );	// wait for 1 more second
 				if (!stateFlags.isSerialRxFromGPS) { // GPS is no longer sending NMEA
+					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 					machineState = ShuttingDown; // OK to shut down
 					break;
 				}
 			}
 			if (GpsOffAttempts >= 3) { // failed to shut down properly
 				machineState = ShuttingDown; // risk shut down anyway, nothing else to do
+				PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 			}
 		} // end machineState == TurningOffGPS
 
