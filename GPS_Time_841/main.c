@@ -135,7 +135,7 @@ static volatile union stateFlags // status bit flags
 	};
 } stateFlags = {0};
 
-volatile uint8_t machineState = Asleep, GpsOnAttempts = 0, GpsOffAttempts = 0;
+volatile uint8_t machineState = Asleep;
 //volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
@@ -352,11 +352,26 @@ int main(void)
 				machineState = ShuttingDown;
 			}
 		}
+		
 		if (machineState == TurningOnGPS) {
 			// try 3 times to turn on GPS
 			// if successful, go to (machineState = ParsingNMEA)
 			// if not, shut down
-			;
+			uint8_t GpsOnAttempts;
+			for (Timer1 = 100; Timer1; );	// wait for 1 second initially
+			for( GpsOnAttempts = 0; GpsOnAttempts <= 3; GpsOnAttempts++ ){
+				PORTB |= (1<<PULSE_GPS); // set high
+				for (Timer1 = 20; Timer1; );	// wait for 200ms
+				PORTB &= ~(1<<PULSE_GPS); // set low
+				for (Timer1 = 100; Timer1; );	// wait for 1 second
+				if (stateFlags.isSerialRxFromGPS) {
+					machineState = ParsingNMEA;
+					break;
+				}
+			}
+			if (!(stateFlags.isSerialRxFromGPS)) {
+				machineState = ShuttingDown;
+			}
 		}
 
 		if (machineState == ParsingNMEA) { 
@@ -378,7 +393,26 @@ int main(void)
 		} // end machineState == ParsingNMEA
 		
 		if (machineState == TurningOffGPS) {
-			;
+			// try 3 times to properly turn GPS off
+			// if successful, shut down
+			// if not, risk shutting down anyway, nothing else to do
+			uint8_t GpsOffAttempts;
+			for (Timer1 = 100; Timer1; );	// wait for 1 second initially
+			for( GpsOffAttempts = 0; GpsOffAttempts <= 3; GpsOffAttempts++ ){
+				PORTB |= (1<<PULSE_GPS); // set high
+				for (Timer1 = 20; Timer1; );	// wait for 200ms
+				PORTB &= ~(1<<PULSE_GPS); // set low
+				for (Timer1 = 100; Timer1; );	// wait for 1 second
+				stateFlags.isSerialRxFromGPS = 0; // clear flag
+				for (Timer1 = 100; Timer1; );	// wait for 1 more second
+				if (!stateFlags.isSerialRxFromGPS) { // GPS is no longer sending NMEA
+					machineState = ShuttingDown; // OK to shut down
+					break;
+				}
+			}
+			if (GpsOffAttempts >= 3) { // failed to shut down properly
+				machineState = ShuttingDown; // risk shut down anyway, nothing else to do
+			}
 		} // end machineState == TurningOffGPS
 
 		if (machineState == ShuttingDown) {
