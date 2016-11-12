@@ -358,15 +358,8 @@ int main(void)
 			// if not, shut down
 			;
 		}
-			
-		if (!(stateFlags.isRoused)) {
-			 // for testing, keep awake
 
-			
-
-
-
-		if (machineState == ParsingNMEA) {
+		if (machineState == ParsingNMEA) { 
 			// following will be the usual exit point
 			// calls a function to send the set-time signal back to the main uC
 			// that function, if successful, will tie things up and end Rouse mode
@@ -381,67 +374,67 @@ int main(void)
 				if (stateFlags.isTimeForDebugDiagnostics) {
 					sendDebugSignal();
 				}
-			}
-		}
+			} // end is stateFlags.isValidTimeRxFromGPS
+		} // end machineState == ParsingNMEA
 		
 		if (machineState == TurningOffGPS) {
 			;
-		}
+		} // end machineState == TurningOffGPS
 
-			if (machineState == ShuttingDown) {
-				// go to sleep
-				endRouse();
-				PORTA &= ~(1<<LED); // turn off pilot light blinkey
+		if (machineState == ShuttingDown) {
+			// go to sleep
+			endRouse();
+			PORTA &= ~(1<<LED); // turn off pilot light blinkey
 			
-				// shut down UARTs
-				UCSR0B = 0;
-				UCSR1B = 0;
+			// shut down UARTs
+			UCSR0B = 0;
+			UCSR1B = 0;
 						
-				// before setting PRADC (PRR[0], below) assure ADC is disabled
-				// may not be necessary, if ADC never enabled, but assures lowest power
-				// ADCSRA – ADC Control and Status Register A
-				// 7 - ADEN: ADC Enable. Writing this bit to zero turns off the ADC
-				ADCSRA &= ~(1<<ADEN);
+			// before setting PRADC (PRR[0], below) assure ADC is disabled
+			// may not be necessary, if ADC never enabled, but assures lowest power
+			// ADCSRA – ADC Control and Status Register A
+			// 7 - ADEN: ADC Enable. Writing this bit to zero turns off the ADC
+			ADCSRA &= ~(1<<ADEN);
 			
-				// PRR – Power Reduction Register
-				// 7 – PRTWI: Power Reduction Two-Wire Interface
-				// 6 – PRUSART1: Power Reduction USART1
-				// 5 – PRUSART0: Power Reduction USART0
-				// 4 – PRSPI: Power Reduction SPI
-				// 3 – PRTIM2: Power Reduction Timer/Counter2
-				// 2 – PRTIM1: Power Reduction Timer/Counter1
-				// 1 – PRTIM0: Power Reduction Timer/Counter0
-				// 0 – PRADC: Power Reduction ADC
+			// PRR – Power Reduction Register
+			// 7 – PRTWI: Power Reduction Two-Wire Interface
+			// 6 – PRUSART1: Power Reduction USART1
+			// 5 – PRUSART0: Power Reduction USART0
+			// 4 – PRSPI: Power Reduction SPI
+			// 3 – PRTIM2: Power Reduction Timer/Counter2
+			// 2 – PRTIM1: Power Reduction Timer/Counter1
+			// 1 – PRTIM0: Power Reduction Timer/Counter0
+			// 0 – PRADC: Power Reduction ADC
 			
-				// shut down any peripheral clocks by writing all 1s
-				// may not be necessary in power-down sleep mode, but assures lowest power
-				PRR = 0xff;
+			// shut down any peripheral clocks by writing all 1s
+			// may not be necessary in power-down sleep mode, but assures lowest power
+			PRR = 0xff;
 			
-				// To enter a sleep mode, the SE bit in MCUCR must be set and 
-				// a SLEEP instruction must be executed. The SMn bits in
-				// MCUCR select which sleep mode will be activated by 
-				// the SLEEP instruction.
+			// To enter a sleep mode, the SE bit in MCUCR must be set and 
+			// a SLEEP instruction must be executed. The SMn bits in
+			// MCUCR select which sleep mode will be activated by 
+			// the SLEEP instruction.
 			
-				// MCUCR – MCU Control Register
-				// (7, 6, 2 reserved)
-				// 5 - SE: Sleep Enable
-				// 4:3 – SM[1:0]: Sleep Mode Select Bits 1 and 0
-				//       SM[1:0]=(10) for Power-down
-				// 1:0 – ISC0[1:0]: Interrupt Sense Control 0 Bit 1 and Bit 0
-				// ISC01 ISC00 Description
-				//   0     0    The low level of INT0 generates an interrupt request
-				//   0     1    Any logical change on INT0 generates an interrupt request
-				//   1     0    The falling edge of INT0 generates an interrupt request
-				//   1     1    The rising edge of INT0 generates an interrupt request
+			// MCUCR – MCU Control Register
+			// (7, 6, 2 reserved)
+			// 5 - SE: Sleep Enable
+			// 4:3 – SM[1:0]: Sleep Mode Select Bits 1 and 0
+			//       SM[1:0]=(10) for Power-down
+			// 1:0 – ISC0[1:0]: Interrupt Sense Control 0 Bit 1 and Bit 0
+			// ISC01 ISC00 Description
+			//   0     0    The low level of INT0 generates an interrupt request
+			//   0     1    Any logical change on INT0 generates an interrupt request
+			//   1     0    The falling edge of INT0 generates an interrupt request
+			//   1     1    The rising edge of INT0 generates an interrupt request
 				
-				// set Power-down sleep mode, wait to set SE, don't care about any other bits
-				MCUCR = 0b00010000;
-				// set SE (sleep enable)
-				MCUCR |= (1<<SE);
-				// go intoPower-down mode SLEEP
-				asm("sleep");
-			}
-		} // end of go-to-sleep
+			// set Power-down sleep mode, wait to set SE, don't care about any other bits
+			MCUCR = 0b00010000;
+			// set SE (sleep enable)
+			MCUCR |= (1<<SE);
+			// go intoPower-down mode SLEEP
+			asm("sleep");
+		} // machineState == ShuttingDown
+
 
 		// continue main program loop
 		// debugging diagnostics, put flag characters into the output string
