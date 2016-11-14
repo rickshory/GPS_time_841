@@ -380,11 +380,11 @@ int main(void)
 			// calls a function to send the set-time signal back to the main uC
 			// that function, if successful, will tie things up and end Rouse mode
 			// which will allow this uC to shut down till woken again by Reset			
-			
-			
 			if (stateFlags.isValidTimeRxFromGPS) {
 				if (!(stateFlags.setTimeCommandSent)) // only send signal once
-				sendSetTimeSignal(); // internally sets stateFlags.setTimeCommandSent and machineState = TurningOffGPS
+					sendSetTimeSignal();
+					stateFlags.setTimeCommandSent = 1; // flag that it is done
+					machineState = TurningOffGPS;
 				} else {
 				// for testing, insert diagnostics
 				if (stateFlags.isTimeForDebugDiagnostics) {
@@ -595,8 +595,6 @@ void sendSetTimeSignal(void) {
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
-	stateFlags.setTimeCommandSent = 1; // flag that it is done
-
 	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
 }
 
