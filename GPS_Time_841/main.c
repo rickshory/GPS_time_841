@@ -69,7 +69,7 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char gps_Power_Enabled:1;
 		unsigned char gps_Being_Pulsed:1;
 		unsigned char listen_To_GPS:1;
-		unsigned char bit4:1;
+		unsigned char wait_for_parse_started:1;
 		unsigned char wait_for_main_Rx_started:1;
 		unsigned char main_serial_Received:1;
 		unsigned char gps_serial_Received:1;
@@ -379,7 +379,14 @@ int main(void)
 			// following will be the usual exit point
 			// calls a function to send the set-time signal back to the main uC
 			// that function, if successful, will tie things up and end Rouse mode
-			// which will allow this uC to shut down till woken again by Reset			
+			// which will allow this uC to shut down till woken again by Reset
+			
+			// try for 3 minutes = 180 sec = 18000 ticks 10ms each
+			// can do with uint16_t max 65535
+			if (!Prog_status.wait_for_parse_started) {
+				stayRoused(18000); // stay roused for 3 minutes
+				Prog_status.wait_for_parse_started = 1;
+			}			
 			if (stateFlags.isValidTimeRxFromGPS) {
 				if (!(stateFlags.setTimeCommandSent)) // only send signal once
 					sendSetTimeSignal();
@@ -391,6 +398,10 @@ int main(void)
 					sendDebugSignal();
 				}
 			} // end is stateFlags.isValidTimeRxFromGPS
+			// no valid time within 3 minutes, begin shutdown
+			if (!(stateFlags.isRoused)) {
+				machineState = TurningOffGPS;
+			}			
 		} // end machineState == ParsingNMEA
 		
 		if (machineState == TurningOffGPS) {
