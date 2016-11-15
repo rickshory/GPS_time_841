@@ -69,7 +69,7 @@ static volatile union Prog_status // Program status bit flags
 		unsigned char gps_Power_Enabled:1;
 		unsigned char gps_Being_Pulsed:1;
 		unsigned char listen_To_GPS:1;
-		unsigned char wait_for_parse_started:1;
+		unsigned char parse_timeout_started:1;
 		unsigned char wait_for_main_Rx_started:1;
 		unsigned char main_serial_Received:1;
 		unsigned char gps_serial_Received:1;
@@ -382,10 +382,10 @@ int main(void)
 			// which will allow this uC to shut down till woken again by Reset
 			
 			// try for 3 minutes = 180 sec = 18000 ticks 10ms each
-			// can do with uint16_t max 65535
-			if (!Prog_status.wait_for_parse_started) {
+			// can do within uint16_t max 65535
+			if (!Prog_status.parse_timeout_started) {
 				stayRoused(18000); // stay roused for 3 minutes
-				Prog_status.wait_for_parse_started = 1;
+				Prog_status.parse_timeout_started = 1;
 			}			
 			if (stateFlags.isValidTimeRxFromGPS) {
 				if (!(stateFlags.setTimeCommandSent)) // only send signal once
