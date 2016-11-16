@@ -386,7 +386,19 @@ int main(void)
 			if (!Prog_status.parse_timeout_started) {
 				stayRoused(18000); // stay roused for 3 minutes
 				Prog_status.parse_timeout_started = 1;
-			}			
+			}
+
+			// debugging diagnostics, put flag characters into the output string
+			if (Prog_status.gps_serial_Received) {
+				int n = parseNMEA();
+				if (n==0) {
+					stateFlags.isValidTimeRxFromGPS = 1;
+					// in final version, turn off UART and GPS here
+					//			} else {
+					//				stateFlags.isValidTimeRxFromGPS = 0;
+				}
+			}
+
 			if (stateFlags.isValidTimeRxFromGPS) {
 				if (!(stateFlags.setTimeCommandSent)) // only send signal once
 					sendSetTimeSignal();
@@ -485,16 +497,6 @@ int main(void)
 
 
 		// continue main program loop
-		// debugging diagnostics, put flag characters into the output string
-		if (Prog_status.gps_serial_Received) {
-			int n = parseNMEA();
-			if (n==0) {
-				stateFlags.isValidTimeRxFromGPS = 1;
-				// in final version, turn off UART and GPS here
-//			} else {
-//				stateFlags.isValidTimeRxFromGPS = 0;
-			}
-		}
     } // end of 'while(1)' main program loop
 }
 
