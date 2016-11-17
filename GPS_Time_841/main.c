@@ -530,7 +530,7 @@ int parseNMEA(void) {
 	//  until the GPS signals that data are valid
 	char ch;
 	while (1) {
-		if (circBufGet(&gps_recBuf, &ch)) {
+		if (circBufGet(&gps_recBuf, &ch)) { // buffer is empty
 			return 1;
 		}
 		if (ch == '$') { // NMEA sentences begin with '$'
@@ -612,7 +612,6 @@ void sendSetTimeSignal(void) {
 }
 
 void sendDebugSignal(void) {
-
 	// for testing, send the current attempt at the set-time message
 	cmdOutPtr = cmdOut;
 	// debugging diagnostics, put flag characters into the output string
