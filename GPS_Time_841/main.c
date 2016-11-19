@@ -86,7 +86,7 @@ static volatile union NMEA_status // NMEA status bit flags
 		unsigned char captureNMEA:1;
 		unsigned char bufferFull:1;
 		unsigned char valid_timestamp:1;
-		unsigned char bit5:1;
+		unsigned char valid_datestamp:1;
 		unsigned char bit6:1;
 		unsigned char bit7:1;
 	};
@@ -541,7 +541,10 @@ int parseNMEA(void) {
 		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
 			if (ch == 0x0d) { // terminate at newline
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
-				if (NMEA_status.valid_data && NMEA_status.valid_timestamp) { // if valid timestamp, we are done, begin shutdown
+				if (NMEA_status.valid_data // GPS says data valid
+						&& NMEA_status.valid_timestamp // time complete
+						&& NMEA_status.valid_datestamp) { // date complete
+					// we are done, begin shutdown
 					return 0;
 				} // else continue getting characters
 			} else { // not end-of-line
@@ -567,12 +570,12 @@ int parseNMEA(void) {
 							if (posCounter == 4) cmdOut[18] = ch;
 							if (posCounter == 5) {
 								cmdOut[19] = ch;
+								// for now, always use Universal time; may calc timezone later from longitude
+								cmdOut[21] = '+';
+								cmdOut[22] = '0';
+								cmdOut[23] = '0';
 								NMEA_status.valid_timestamp = 1; // timestamp complete
 								}
-							// for now, always use Universal time; may calc timezone later from longitude
-							cmdOut[21] = '+';
-							cmdOut[22] = '0';
-							cmdOut[23] = '0';
 							break;
 						case isValid:
 							if ((posCounter == 0) && (ch == 'A'))
@@ -582,12 +585,16 @@ int parseNMEA(void) {
 //							break;
 						case dateStamp: // "ddmmyy"; rearrange and copy, in between '-' positions
 										// to make "20yy-mm-dd"
-							if (posCounter == 4) cmdOut[3] = ch;
-							if (posCounter == 5) cmdOut[4] = ch;
-							if (posCounter == 2) cmdOut[6] = ch;
-							if (posCounter == 3) cmdOut[7] = ch;
+							NMEA_status.valid_datestamp = 0; // flag off while getting current date
 							if (posCounter == 0) cmdOut[9] = ch;
 							if (posCounter == 1) cmdOut[10] = ch;
+							if (posCounter == 2) cmdOut[6] = ch;
+							if (posCounter == 3) cmdOut[7] = ch;
+							if (posCounter == 4) cmdOut[3] = ch;
+							if (posCounter == 5) {
+								cmdOut[4] = ch;
+								NMEA_status.valid_datestamp = 1; // date is valid
+								} 
 							break;
 //						case magVar: // don't need this field, or any after
 //							NMEA_status.use_nmea = 0; // skip characters till next '$' found
