@@ -541,11 +541,8 @@ int parseNMEA(void) {
 		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
 			if (ch == 0x0d) { // terminate at newline
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
-				if (NMEA_status.valid_data // GPS says data valid
-						&& NMEA_status.valid_timestamp // time complete
-						&& NMEA_status.valid_datestamp) { // date complete
-					// we are done, begin shutdown
-					return 0;
+				if (NMEA_status.valid_data) { // GPS says data valid
+					return 0; // we are done, begin shutdown
 				} // else continue getting characters
 			} else { // not end-of-line
 				if (ch == ',') { // field delimiter
@@ -578,8 +575,13 @@ int parseNMEA(void) {
 								}
 							break;
 						case isValid:
-							if ((posCounter == 0) && (ch == 'A'))
-								NMEA_status.valid_data = 1; // GPS says data valid
+							if (posCounter == 0) {
+								if (ch == 'A') {
+									NMEA_status.valid_data = 1; // GPS says data valid
+								} else {
+									NMEA_status.valid_data = 0; // data not valid
+								}
+							}
 							break;
 //						case curLon: 
 //							break;
