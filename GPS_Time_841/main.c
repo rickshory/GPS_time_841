@@ -330,14 +330,16 @@ int main(void)
 	NMEA_status.use_nmea = 0; // do not try to parse until start-of-sentence found
 	NMEA_status.valid_data = 0; // not valid data yet
 	
-	stayRoused(1000); // stay roused for 10 seconds
+//	stayRoused(1000); // stay roused for 10 seconds
 	
 	machineState = WaitingForMain; // waiting to Rx serial from main uC, prevents run-on if not in-system
 	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
 
     while (1) {
-		
+		// drop in diagnostics, overwrite the dash between year and month with the machine state
+		cmdOut[5] = '0' + machineState;
 		if (machineState == WaitingForMain) { 
+			
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
 			if (!Prog_status.wait_for_main_Rx_started) {
 				stayRoused(3000); // stay roused for 30 seconds
@@ -400,16 +402,14 @@ int main(void)
 			}
 
 			if (stateFlags.isValidTimeRxFromGPS) {
-				if (!(stateFlags.setTimeCommandSent)) // only send signal once
+				if (!(stateFlags.setTimeCommandSent)) {
+					// only send signal once
 					sendSetTimeSignal();
 					stateFlags.setTimeCommandSent = 1; // flag that it is done
-					machineState = TurningOffGPS;
-				} else {
-				// for testing, insert diagnostics
-				if (stateFlags.isTimeForDebugDiagnostics) {
-					sendDebugSignal();
-				}
+					machineState = TurningOffGPS;					
+				} 
 			} // end is stateFlags.isValidTimeRxFromGPS
+			
 			// no valid time within 3 minutes, begin shutdown
 			if (!(stateFlags.isRoused)) {
 				machineState = TurningOffGPS;
@@ -494,6 +494,10 @@ int main(void)
 			// go intoPower-down mode SLEEP
 			asm("sleep");
 		} // machineState == ShuttingDown
+		
+		if (stateFlags.isTimeForDebugDiagnostics) {
+			sendDebugSignal();
+		}
 
 
 		// continue main program loop
@@ -641,7 +645,7 @@ void sendDebugSignal(void) {
 	stateFlags.isTimeForDebugDiagnostics = 0;
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
-	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
+//	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
 }
 
 int circBufPut(circBuf_t *c, char d) {
@@ -681,9 +685,9 @@ ISR(TIMER1_COMPA_vect) {
 		ToggleCountdown = TOGGLE_INTERVAL;
 	}
 	
-	// for testing, show what's currently in the set-time signal
-	// do this every 1.5 seconds
-	if ((rouseCountdown % 150) == 0) {
+	// for testing, show what's currently in output buffer
+	// do this every 0.5 seconds
+	if ((rouseCountdown % 50) == 0) {
 		stateFlags.isTimeForDebugDiagnostics = 1;
 	}
 	
