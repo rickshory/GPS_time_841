@@ -171,7 +171,7 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 #define TX0 PA1 // not currently used
 #define RX0 PA2 // used to Rx from GPS
 #define TX1 PA5 // used to Tx time signal
-#define RX1 PA4 // not currently used
+#define RX1 PA4 // used to Rx from main uC, to verify connected
 #define GPS_PWR PB0
 #define PULSE_GPS PB1
 #define TEST_FORCE_GPS_OFF PA0
@@ -299,7 +299,7 @@ int main(void)
 	UBRR1L = (unsigned char)UcRxUbrr;
 	// set USART1 to transmit and receive
 	// UCSR1A, use defaults
-	UCSR1B = (1<<RXEN1)|(1<<TXEN1); // use defaults except for these
+	UCSR1B = (1<<RXCIE1)|(1<<RXEN1)|(1<<TXEN1); // use defaults except for these
 	// set USART1 frame format: 8data, 1stop bit
 	UCSR1C = (3<<UCSZ10);
 	//UCSR1D, leave default 0, do not let Rx wake this uC
