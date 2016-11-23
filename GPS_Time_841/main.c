@@ -738,31 +738,9 @@ ISR(USART1_RX_vect) {
 	// occurs when USART1 Rx Complete
 	Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
 	// for now, only flag that some character received, don't even store it
+	char main_receive_byte = UDR1; // read the char to clear the buffer
 	UCSR1B &= ~(1<<RXCIE1); // disable interrupt
 	UCSR1B &= ~(1<<RXEN1); // disable receive; should flush the receive buffer and clear RXC1 flag, allowing Tx1
-
-/*
-	// for now, leave in the following test
-	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
-	 return; // don't capture anything any more
-*/
-//	char main_receive_byte = UDR1;
-/*
-	if (main_receive_byte == '\n') { // end of line
-		cmd_status.capture_cmd = 1; // flag to start capturing
-		cmd_capture_ctr = -1; // no chars counted yet
-	}
-	cmd_capture_ctr++;
-	if ((cmd_capture_ctr == 3) && (main_receive_byte != 'R')) // cannot be a "$GPRMC" sentence
-	cmd_status.capture_cmd = 0; // stop capturing
-	if (cmd_status.capture_cmd) { // try to store the character
-		if (circBufPut(&main_recBuf, main_receive_byte)) {
-			cmd_status.buffer_full = 1; // if full, drop; ISR can't return anything; Rx data will be repeated
-			} else {
-			cmd_status.buffer_full = 0;
-		}
-	}
-*/	
 }
 
 void restoreCmdDefault(void) {
