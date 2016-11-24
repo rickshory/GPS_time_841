@@ -739,10 +739,10 @@ ISR(USART1_RX_vect) {
 	Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
 	// for now, only flag that some character received, don't even store it
 	char main_receive_byte = UDR1; // read the char to clear the buffer
-	UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
-	while (!(UCSR1A & (1<<UDRE1))) { // try reading buffer over and over till buffer-empty flag is set
-		main_receive_byte = UDR1;
-	}
+	if ((UCSR1A & (1<<UDRE1))) { // enter this ISR till buffer-empty flag is set
+		UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
+//		main_receive_byte = UDR1;
+	}	
 //	UCSR1B &= ~(1<<RXCIE1); // disable interrupt
 //	UCSR1B &= ~(1<<RXEN1); // disable receive; should flush the receive buffer and clear RXC1 flag, allowing Tx1
 }
