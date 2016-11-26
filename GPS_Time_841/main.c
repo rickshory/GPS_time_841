@@ -350,7 +350,9 @@ int main(void)
 			}
 			// if nothing receive in 30 seconds, shut down
 			if (!(stateFlags.isRoused)) {
-				machineState = ShuttingDown;
+//				machineState = ShuttingDown;
+// for testing, run into TurningOnGPS on timeout
+				machineState = TurningOnGPS;
 			}
 		}
 		
