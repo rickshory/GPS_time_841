@@ -347,6 +347,8 @@ int main(void)
 			
 			if (Prog_status.main_serial_Received) {
 				machineState = TurningOnGPS;
+				endRouse();
+				break;
 			}
 			// if nothing receive in 30 seconds, shut down
 			if (!(stateFlags.isRoused)) {
