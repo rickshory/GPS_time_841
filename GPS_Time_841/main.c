@@ -338,17 +338,7 @@ int main(void)
     while (1) {
 		// drop in diagnostics, overwrite the dash between year and month with the machine state
 		cmdOut[5] = '0' + machineState;
-		if (Prog_status.main_serial_Received && !cmd_status.rx1_disabled) {
-			cli(); // temporarily disable interrupts
-			UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
-			// clear what interrupt we can, the Transmit Complete interrupt
-			UCSR1A |= (1<<TXC1);
-			cmd_status.rx1_disabled = 1;
-			// set the global interrupt enable bit.
-			sei();
-		}
 		if (machineState == WaitingForMain) { 
-			
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
 			if (!Prog_status.wait_for_main_Rx_started) {
 				stayRoused(3000); // stay roused for 30 seconds
@@ -646,14 +636,7 @@ void sendDebugSignal(void) {
 	}
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
-			if (Prog_status.main_serial_Received && !cmd_status.rx1_disabled) {
-				// kludge, to get out of lockup on Rx/Tx collision
-				// reset the following flag, to allow the next periodic diagnostics
-				stateFlags.isTimeForDebugDiagnostics = 0;
-				// after testing diagnostics, put the string back as it was
-				restoreCmdDefault();
-				return;
-			}
+			;
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
@@ -755,12 +738,7 @@ ISR(USART1_RX_vect) {
 	Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
 	// for now, only flag that some character received, don't even store it
 	char main_receive_byte = UDR1; // read the char to clear the buffer
-	if ((UCSR1A & (1<<UDRE1))) { // enter this ISR till buffer-empty flag is set
-		UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
-//		main_receive_byte = UDR1;
-	}	
-//	UCSR1B &= ~(1<<RXCIE1); // disable interrupt
-//	UCSR1B &= ~(1<<RXEN1); // disable receive; should flush the receive buffer and clear RXC1 flag, allowing Tx1
+	UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
 }
 
 void restoreCmdDefault(void) {
