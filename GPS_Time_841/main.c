@@ -103,7 +103,7 @@ static volatile union cmd_status // main Rx/Tx command status bit flags
 		unsigned char buffer_full:1;
 		unsigned char pwr_gps_on:1;
 		unsigned char pulse_gps:1;
-		unsigned char bit6:1;
+		unsigned char rx1_disabled:1;
 		unsigned char bit7:1;
 	};
 	} cmd_status = {0};
@@ -637,7 +637,14 @@ void sendDebugSignal(void) {
 	}
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
-			;
+			if (Prog_status.main_serial_Received && !cmd_status.rx1_disabled) {
+				// kludge, to get out of lockup on Rx/Tx collision
+				// reset the following flag, to allow the next periodic diagnostics
+				stateFlags.isTimeForDebugDiagnostics = 0;
+				// after testing diagnostics, put the string back as it was
+				restoreCmdDefault();
+				return;
+			}
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
