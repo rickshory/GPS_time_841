@@ -338,6 +338,15 @@ int main(void)
     while (1) {
 		// drop in diagnostics, overwrite the dash between year and month with the machine state
 		cmdOut[5] = '0' + machineState;
+		if (Prog_status.main_serial_Received && !cmd_status.rx1_disabled) {
+			cli(); // temporarily disable interrupts
+			UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
+			// clear what interrupt we can, the Transmit Complete interrupt
+			UCSR1A |= (1<<TXC1);
+			cmd_status.rx1_disabled = 1;
+			// set the global interrupt enable bit.
+			sei();
+		}
 		if (machineState == WaitingForMain) { 
 			
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
