@@ -135,7 +135,7 @@ static volatile union stateFlags // status bit flags
 	};
 } stateFlags = {0};
 
-volatile uint8_t machineState = Asleep;
+volatile uint8_t machineState = Asleep, GpsOnAttempts;
 //volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
@@ -356,29 +356,45 @@ int main(void)
 // for testing, run into TurningOnGPS on timeout
 				machineState = TurningOnGPS;
 			}
-		}
+		} // end of (machineState == WaitingForMain)
 		
 		if (machineState == TurningOnGPS) {
-			// try 3 times to turn on GPS
-			// if successful, go to (machineState = ParsingNMEA)
-			// if not, shut down
-			uint8_t GpsOnAttempts;
-			PORTB |= (1<<GPS_PWR); // enable power to GPS module
-			for (Timer1 = 100; Timer1; );	// wait for 1 second initially
-			for( GpsOnAttempts = 0; GpsOnAttempts <= 3; GpsOnAttempts++ ){
-				PORTB |= (1<<PULSE_GPS); // set high
-				for (Timer1 = 20; Timer1; );	// wait for 200ms
-				PORTB &= ~(1<<PULSE_GPS); // set low
-				for (Timer1 = 100; Timer1; );	// wait for 1 second
-				if (stateFlags.isSerialRxFromGPS) {
-					machineState = ParsingNMEA;
+			if (stateFlags.isSerialRxFromGPS) { // if GPS serial is being receive, a pulse successfully woke the GPS
+				endRouse(); // end any rouse
+				machineState = ParsingNMEA;
+				break;
+			}			
+			if (stateFlags.isRoused) { // this section is rouse-based
+				break; // if roused, don't do any of the following
+			}
+			if (!(stateFlags.isGPSPowerOn)) { // enable power to GPS
+				PORTB |= (1<<GPS_PWR); // raise the pin that enables power to the GPS module
+				stayRoused(100); // rouse for 1 second, for power to settle
+				GpsOnAttempts = 0; // define and set to zero
+				stateFlags.isGPSPowerOn = 1; // flag that power is now on
+			} else { // by either bypassing or entering above block, GPS power is now on
+				// try 3 times to wake GPS
+				// if successful, go to (machineState = ParsingNMEA)
+				// if not, shut down
+				if (GpsOnAttempts > 3) {
+					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
+					stateFlags.isGPSPowerOn = 0; // flag that power is off
+					machineState = ShuttingDown;
 					break;
 				}
-			}
-			if (!(stateFlags.isSerialRxFromGPS)) {
-				machineState = ShuttingDown;
-			}
-		}
+				if (!(Prog_status.gps_Being_Pulsed)) { // not being pulsed
+					// initiate a pulse
+					PORTB |= (1<<PULSE_GPS); // set high
+					stayRoused(20); // pulse duration, about 0.2 sec
+					Prog_status.gps_Being_Pulsed = 1;
+				} else { // just finished a pulse
+					PORTB &= ~(1<<PULSE_GPS); // set low
+					GpsOnAttempts++; // tally another attempt made
+					stayRoused(500); // wait for up to 5 sec before trying again
+					Prog_status.gps_Being_Pulsed = 0;
+				}
+			} // end test of GPS power on
+		} // end of (machineState == TurningOnGPS)
 
 		if (machineState == ParsingNMEA) { 
 			// following will be the usual exit point
@@ -431,7 +447,7 @@ int main(void)
 				PORTB &= ~(1<<PULSE_GPS); // set low
 				for (Timer1 = 100; Timer1; );	// wait for 1 second
 				stateFlags.isSerialRxFromGPS = 0; // clear flag
-				for (Timer1 = 100; Timer1; );	// wait for 1 more second
+				for (Timer1 = 500; Timer1; );	// wait for 5 more seconds
 				if (!stateFlags.isSerialRxFromGPS) { // GPS is no longer sending NMEA
 					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 					machineState = ShuttingDown; // OK to shut down
