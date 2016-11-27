@@ -336,8 +336,12 @@ int main(void)
 	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
 
     while (1) {
+		nextIteration:
 		// drop in diagnostics, overwrite the dash between year and month with the machine state
 		cmdOut[5] = '0' + machineState;
+		if (stateFlags.isTimeForDebugDiagnostics) {
+			sendDebugSignal();
+		}		
 		if (machineState == WaitingForMain) { 
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
 			if (!Prog_status.wait_for_main_Rx_started) {
@@ -348,13 +352,14 @@ int main(void)
 			if (Prog_status.main_serial_Received) {
 				machineState = TurningOnGPS;
 				endRouse();
-				break;
+				goto nextIteration;
 			}
 			// if nothing receive in 30 seconds, shut down
 			if (!(stateFlags.isRoused)) {
 //				machineState = ShuttingDown;
 // for testing, run into TurningOnGPS on timeout
 				machineState = TurningOnGPS;
+				goto nextIteration;
 			}
 		} // end of (machineState == WaitingForMain)
 		
@@ -362,10 +367,10 @@ int main(void)
 			if (stateFlags.isSerialRxFromGPS) { // if GPS serial is being receive, a pulse successfully woke the GPS
 				endRouse(); // end any rouse
 				machineState = ParsingNMEA;
-				break;
+				goto nextIteration;
 			}			
 			if (stateFlags.isRoused) { // this section is rouse-based
-				break; // if roused, don't do any of the following
+				goto nextIteration; // if roused, don't do any of the following
 			}
 			if (!(stateFlags.isGPSPowerOn)) { // enable power to GPS
 				PORTB |= (1<<GPS_PWR); // raise the pin that enables power to the GPS module
@@ -380,7 +385,7 @@ int main(void)
 					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 					stateFlags.isGPSPowerOn = 0; // flag that power is off
 					machineState = ShuttingDown;
-					break;
+					goto nextIteration;
 				}
 				if (!(Prog_status.gps_Being_Pulsed)) { // not being pulsed
 					// initiate a pulse
@@ -393,6 +398,7 @@ int main(void)
 					stayRoused(500); // wait for up to 5 sec before trying again
 					Prog_status.gps_Being_Pulsed = 0;
 				}
+				goto nextIteration;
 			} // end test of GPS power on
 		} // end of (machineState == TurningOnGPS)
 
@@ -425,13 +431,15 @@ int main(void)
 					// only send signal once
 					sendSetTimeSignal();
 					stateFlags.setTimeCommandSent = 1; // flag that it is done
-					machineState = TurningOffGPS;					
+					machineState = TurningOffGPS;
+					goto nextIteration;
 				} 
 			} // end is stateFlags.isValidTimeRxFromGPS
 			
 			// no valid time within 3 minutes, begin shutdown
 			if (!(stateFlags.isRoused)) {
 				machineState = TurningOffGPS;
+				goto nextIteration;
 			}			
 		} // end machineState == ParsingNMEA
 		
@@ -451,7 +459,7 @@ int main(void)
 				if (!stateFlags.isSerialRxFromGPS) { // GPS is no longer sending NMEA
 					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 					machineState = ShuttingDown; // OK to shut down
-					break;
+					goto nextIteration;
 				}
 			}
 			if (GpsOffAttempts >= 3) { // failed to shut down properly
@@ -513,11 +521,6 @@ int main(void)
 			// go intoPower-down mode SLEEP
 			asm("sleep");
 		} // machineState == ShuttingDown
-		
-		if (stateFlags.isTimeForDebugDiagnostics) {
-			sendDebugSignal();
-		}
-
 
 		// continue main program loop
     } // end of 'while(1)' main program loop
