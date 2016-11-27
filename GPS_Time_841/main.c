@@ -135,7 +135,7 @@ static volatile union stateFlags // status bit flags
 	};
 } stateFlags = {0};
 
-volatile uint8_t machineState = Asleep, GpsOnAttempts;
+volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
 //volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
@@ -339,6 +339,9 @@ int main(void)
 		nextIteration:
 		// drop in diagnostics, overwrite the dash between year and month with the machine state
 		cmdOut[5] = '0' + machineState;
+		if (machineState == TurningOnGPS) { // overwrite the space between date and time with GpsOnAttempts
+			cmdOut[11] = '0' + GpsOnAttempts;
+		}
 		if (stateFlags.isTimeForDebugDiagnostics) {
 			sendDebugSignal();
 		}		
