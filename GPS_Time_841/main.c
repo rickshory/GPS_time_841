@@ -185,6 +185,10 @@ int main(void)
 	// set up to blink an LED
 	DDRA |= (1<<LED);
 	
+	// set up GPS control lines as outputs
+	DDRB != GPS_PWR;
+	DDRB != PULSE_GPS;
+	
 	// set up Tx1 as an output
 	DDRA |= (1<<TX1);
 
