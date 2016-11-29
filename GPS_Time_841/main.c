@@ -183,11 +183,14 @@ int main(void)
 	uint16_t GpsTxUbrr, UcRxUbrr;
 
 	// set up to blink an LED
-	DDRA |= (1<<LED);
+	DDRA |= (1<<LED); // set pin as output
+	PORTA &= ~(1<<LED); // initially force low
 	
 	// set up GPS control lines as outputs
-	DDRB != GPS_PWR;
-	DDRB != PULSE_GPS;
+	DDRB |= (1<<PULSE_GPS); // set pin as output
+	PORTB &= ~(1<<PULSE_GPS); // initially force low
+	DDRB |= (1<<GPS_PWR); // set pin as output
+	PORTB &= ~(1<<GPS_PWR); // initially force low
 	
 	// set up Tx1 as an output
 	DDRA |= (1<<TX1);
