@@ -145,7 +145,7 @@ volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
 static volatile char *cmdOutPtr;
 static volatile int nmea_capture_counter;
-static volatile int cmd_capture_ctr;
+static volatile int cmd_capture_ctr = 0;
 static volatile int fldCounter;
 static volatile int posCounter;
 
@@ -766,10 +766,22 @@ ISR(USART0_RX_vect) {
 
 ISR(USART1_RX_vect) {
 	// occurs when USART1 Rx Complete
-	Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
-	// for now, only flag that some character received, don't even store it
-//	char main_receive_byte = UDR1; // read the char to clear the buffer
-	UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
+	// for now, only flag that characters received, don't even store anything
+	char main_receive_byte;
+	// count 3 "good" characters; if board is totally unconnected, random noise interpreted as Rx, though with errors
+	// FE1: Frame Error
+	// DOR1: Data OverRun
+	// UPE1: USART Parity Error	
+	if (UCSR1A & ((1<<FE1) | (1<<DOR1) | (1<<UPE1))) { // bad "character" received
+		cmd_capture_ctr = 0; // reset counter
+	} else {
+		cmd_capture_ctr++; // count that we got a good character
+	}
+	main_receive_byte = UDR1; // clear any error flags, and buffer
+	if (cmd_capture_ctr >= 3) {
+		Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
+		UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
+	}	
 }
 
 void restoreCmdDefault(void) {
