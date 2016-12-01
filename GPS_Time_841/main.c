@@ -127,7 +127,7 @@ static volatile union stateFlags // status bit flags
 		unsigned char isRoused:1; // triggered by initiating Reset, and re-triggered by any activity while awake
 		unsigned char reRoused:1; // re-triggered while awake, used to reset timeout
 		unsigned char isGPSPowerOn:1; // is the GPS powered on
-		unsigned char isSerialRxFromGPS:1; // has some serial data been received from the GPS
+		unsigned char bit3:1; //
 		unsigned char isValid_NMEA_RxFromGPS:1; // has some valid NMEA data been received from the GPS
 		unsigned char isValidTimeRxFromGPS:1; // has a valid Timestamp been received from the GPS
 		unsigned char setTimeCommandSent:1; // final set-time command has been sent
@@ -374,7 +374,7 @@ int main(void)
 		} // end of (machineState == WaitingForMain)
 		
 		if (machineState == TurningOnGPS) {
-			if (stateFlags.isSerialRxFromGPS) { // if GPS serial is being receive, a pulse successfully woke the GPS
+			if (Prog_status.gps_serial_Received) { // if GPS serial is being receive, a pulse successfully woke the GPS
 				endRouse(); // end any rouse
 				machineState = ParsingNMEA;
 				goto nextIteration;
@@ -464,9 +464,9 @@ int main(void)
 				for (Timer1 = 20; Timer1; );	// wait for 200ms
 				PORTB &= ~(1<<PULSE_GPS); // set low
 				for (Timer1 = 100; Timer1; );	// wait for 1 second
-				stateFlags.isSerialRxFromGPS = 0; // clear flag
+				Prog_status.gps_serial_Received = 0; // clear flag
 				for (Timer1 = 500; Timer1; );	// wait for 5 more seconds
-				if (!stateFlags.isSerialRxFromGPS) { // GPS is no longer sending NMEA
+				if (!Prog_status.gps_serial_Received) { // GPS is no longer sending NMEA
 					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 					machineState = ShuttingDown; // OK to shut down
 					goto nextIteration;
