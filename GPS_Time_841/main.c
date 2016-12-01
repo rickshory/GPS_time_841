@@ -375,9 +375,12 @@ int main(void)
 		
 		if (machineState == TurningOnGPS) {
 			if (Prog_status.gps_serial_Received) { // if GPS serial is being receive, a pulse successfully woke the GPS
-				endRouse(); // end any rouse
-				machineState = ParsingNMEA;
-				goto nextIteration;
+				if (!(Prog_status.gps_Being_Pulsed)) { // not in the midst of being pulsed
+					endRouse(); // end any rouse
+					machineState = ParsingNMEA;
+					goto nextIteration;
+				}
+
 			}			
 			if (stateFlags.isRoused) { // this section is rouse-based
 				goto nextIteration; // if roused, don't do any of the following
