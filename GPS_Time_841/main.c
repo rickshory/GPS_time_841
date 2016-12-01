@@ -310,6 +310,8 @@ int main(void)
 	// set USART1 frame format: 8data, 1stop bit
 	UCSR1C = (3<<UCSZ10);
 	//UCSR1D, leave default 0, do not let Rx wake this uC
+	PUEA |= (1<<RX1);
+	// pull up Rx1; otherwise if unconnected can get bleed-through from serial diagnostics
 	
 	//REMAP[0] – U0MAP: USART0 Pin Mapping
 	// U0MAP RXD0 TXD0 Note
