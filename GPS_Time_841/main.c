@@ -13,7 +13,7 @@
 #define GPS_RX_BUF_LEN 128
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
-#define GPS_RX_TIMEOUT 100 // 100 ticks = 1 second
+#define GPS_RX_TIMEOUT 255 // 100 ticks = 1 second
 
 #include <avr/io.h>
 #include <util/delay.h>
