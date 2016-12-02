@@ -421,12 +421,13 @@ int main(void)
 			// calls a function to send the set-time signal back to the main uC
 			// that function, if successful, will tie things up and end Rouse mode
 			// which will allow this uC to shut down till woken again by Reset
-			
+
 			if (!(Prog_status.gps_serial_Received)) { // GPS has failed
 				PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 				machineState = ShuttingDown; // begin shut down
 				goto nextIteration;
 			}
+
 			// try for 3 minutes = 180 sec = 18000 ticks 10ms each
 			// can do within uint16_t max 65535
 			if (!Prog_status.parse_timeout_started) {
@@ -713,7 +714,7 @@ ISR(TIMER1_COMPA_vect) {
 	// set to occur at 100Hz
 	char n;
 	int16_t t;
-	int8_t g;
+	uint8_t g;
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
