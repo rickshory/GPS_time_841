@@ -13,6 +13,7 @@
 #define GPS_RX_BUF_LEN 128
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
+#define GPS_RX_TIMEOUT 100 // 100 ticks = 1 second
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -140,6 +141,7 @@ volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
+volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
@@ -380,7 +382,6 @@ int main(void)
 					machineState = ParsingNMEA;
 					goto nextIteration;
 				}
-
 			}			
 			if (stateFlags.isRoused) { // this section is rouse-based
 				goto nextIteration; // if roused, don't do any of the following
@@ -421,6 +422,11 @@ int main(void)
 			// that function, if successful, will tie things up and end Rouse mode
 			// which will allow this uC to shut down till woken again by Reset
 			
+			if (!(Prog_status.gps_serial_Received)) { // GPS has failed
+				PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
+				machineState = ShuttingDown; // begin shut down
+				goto nextIteration;
+			}
 			// try for 3 minutes = 180 sec = 18000 ticks 10ms each
 			// can do within uint16_t max 65535
 			if (!Prog_status.parse_timeout_started) {
@@ -428,15 +434,10 @@ int main(void)
 				Prog_status.parse_timeout_started = 1;
 			}
 
-			// debugging diagnostics, put flag characters into the output string
-			if (Prog_status.gps_serial_Received) {
-				int n = parseNMEA();
-				if (n==0) {
-					stateFlags.isValidTimeRxFromGPS = 1;
-					// in final version, turn off UART and GPS here
-					//			} else {
-					//				stateFlags.isValidTimeRxFromGPS = 0;
-				}
+			// already tested gps_serial_Received 
+			int n = parseNMEA();
+			if (n==0) {
+				stateFlags.isValidTimeRxFromGPS = 1;
 			}
 
 			if (stateFlags.isValidTimeRxFromGPS) {
@@ -447,7 +448,7 @@ int main(void)
 					machineState = TurningOffGPS;
 					goto nextIteration;
 				} 
-			} // end is stateFlags.isValidTimeRxFromGPS
+			} // end stateFlags.isValidTimeRxFromGPS
 			
 			// no valid time within 3 minutes, begin shutdown
 			if (!(stateFlags.isRoused)) {
@@ -466,9 +467,8 @@ int main(void)
 				PORTB |= (1<<PULSE_GPS); // set high
 				for (Timer1 = 20; Timer1; );	// wait for 200ms
 				PORTB &= ~(1<<PULSE_GPS); // set low
-				for (Timer1 = 100; Timer1; );	// wait for 1 second
-				Prog_status.gps_serial_Received = 0; // clear flag
-				for (Timer1 = 500; Timer1; );	// wait for 5 more seconds
+				for (Timer1 = 200; Timer1; );	// wait for 2 second
+				// Prog_status.gps_serial_Received flag cleared automatically by timeout
 				if (!Prog_status.gps_serial_Received) { // GPS is no longer sending NMEA
 					PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 					machineState = ShuttingDown; // OK to shut down
@@ -660,7 +660,6 @@ void sendSetTimeSignal(void) {
 		}
 		UDR1 = *cmdOutPtr++; // put the character to be transmitted in the Tx buffer
 	}
-	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
 }
 
 void sendDebugSignal(void) {
@@ -680,7 +679,6 @@ void sendDebugSignal(void) {
 	stateFlags.isTimeForDebugDiagnostics = 0;
 	// after testing diagnostics, put the string back as it was
 	restoreCmdDefault();
-//	Prog_status.gps_serial_Received = 0; // clear the flag that says serial has been received
 }
 
 int circBufPut(circBuf_t *c, char d) {
@@ -715,10 +713,19 @@ ISR(TIMER1_COMPA_vect) {
 	// set to occur at 100Hz
 	char n;
 	int16_t t;
+	int8_t g;
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
 	}
+	
+	cli(); // don't let other interrupts interfere
+	g = gpsTimeoutCountdown;
+	if (g) gpsTimeoutCountdown = --g;
+	if (!gpsTimeoutCountdown) {
+		Prog_status.gps_serial_Received = 0;
+	}
+	sei();
 	
 	// for testing, show what's currently in output buffer
 	// do this every 0.5 seconds
@@ -749,10 +756,23 @@ ISR(TIMER1_COMPA_vect) {
 
 ISR(USART0_RX_vect) {
 	// occurs when USART0 Rx Complete
+	char gps_receiveByte;
+	// ignore any "bad" characters
+	// FE0: Frame Error
+	// DOR0: Data OverRun
+	// UPE0: USART Parity Error
+	if (UCSR0A & ((1<<FE0) | (1<<DOR0) | (1<<UPE0))) { // bad "character" received
+		gps_receiveByte = UDR0; // read register to clear it
+		return;
+	}
+	
+	cli(); // don't let other interrupts interfere
 	Prog_status.gps_serial_Received = 1; // flag that serial is being received
+	gpsTimeoutCountdown = GPS_RX_TIMEOUT; // while Rx normally, will always refresh within this interval
+	sei();
+	gps_receiveByte = UDR0; // read character
 	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
 		return; // don't capture anything any more
-	char gps_receiveByte = UDR0;
 	if (gps_receiveByte == '$') { // start of NMEA sentence
 		NMEA_status.captureNMEA = 1; // flag to start capturing
 		nmea_capture_counter = -1; // no chars counted yet
