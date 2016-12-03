@@ -136,6 +136,20 @@ static volatile union stateFlags // status bit flags
 	};
 } stateFlags = {0};
 
+// union allows writing in Lo and Hi bytes of ADC, and reading out whole word
+typedef struct {
+	union {
+		struct {
+			uint8_t adcLoByte, adcHiByte; // this is the correct endian-ness
+		};
+		struct  {
+			uint16_t adcWholeWord;
+		};
+	};
+	uint16_t adcMultiplier;
+} adcData;
+
+volatile adcData cellVoltageReading;
 volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
 //volatile uint8_t stateFlags = 0;
 //volatile uint8_t iTmp;
@@ -541,11 +555,7 @@ int main(void)
 }
 
 /*
-volatile adcData cellVoltageReading;
-
-// steps to do an Analog-to-Digital conversion
-*/
-/*
+Steps to do an Analog-to-Digital conversion:
 
 connect internal 2.56V reference voltage to the AREF pin by writing to the REFSn bits in the ADMUX Register
 decouple the internal voltage reference by an external capacitor at the AREF pin to improve noise immunity
