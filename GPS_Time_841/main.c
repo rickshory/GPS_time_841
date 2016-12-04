@@ -557,10 +557,8 @@ int main(void)
 /*
 Steps to do an Analog-to-Digital conversion:
 
-connect internal 2.56V reference voltage to the AREF pin by writing to the REFSn bits in the ADMUX Register
-decouple the internal voltage reference by an external capacitor at the AREF pin to improve noise immunity
-on 40-DIP = pin 32
-on 44-TQFP = pin 29
+use internal 2.2V reference voltage, disconnected from the AREF pin
+specify by writing to the REFS[2:0] bits in ADMUXB
 
 Set the ADPS bits in ADCSRA to choose ADC prescaling, to provide an input clock frequency between
  50kHz and 200kHz to the successive approximation circuitry.
@@ -597,15 +595,38 @@ write zero to ADEN to avoid excessive power consumption
 
  REFS0
 */
-/*
 uint8_t readCellVoltage (volatile adcData *cellV) {
 	uint8_t ct;
-//	uint16_t
 	unsigned long sumOf8Readings = 0;
 	// set initial conditions; conversion-complete interrupt will fill in these values
 	cellV->adcWholeWord = 0;
 	cellV->adcMultiplier = 0; // currently, flags that we have no conversion yet
+	// clear the ADC power reduction bit
+	PRR &= ~(1<<PRADC);
+	// enable the ADC
+	ADCSRA |= (1<<ADEN);
+	// select ADC voltage reference, 2.2V internal reference, disconnected from external AREF pin
+	// ADMUXB
+	// select ADC0 as the input; PA0, pin 13 in SOIC package, pin 5 in QFN package
+	// ADMUXA
+	// set ADC prescaler, ADPS bits in ADCSRA
+	// ADCSRA
 	
+	// Enter ADC Noise Reduction mode (or Idle mode). The ADC will start a conversion once the CPU has been halted.
+	// Do ADC work before enabling any other interrupts. Other ISRs may wake the CPU first and so the
+	// ADC interrupt would complete with the CPU in active mode, higher noise.
+	// When the ADC conversion completes, the ADC interrupt will wake up the CPU and
+	// execute the ADC Conversion Complete interrupt routine.
+	
+	
+	// done, disable the ADC
+	ADCSRA &= ~(1<<ADEN);
+	// done, set the ADC power reduction bit
+	PRR |= (1<<PRADC);
+	return cellV->adcHiByte; // for testing
+}
+
+/*
 	// Set prescale by ADPS bits in ADCSRA.
 	// using 8MHz CPU clock:
 	//	desired ADC clock	calculated division factor
@@ -702,7 +723,7 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	// done, clear SE to prevent SLEEP by accident
 	SMCR &= ~(1<<SE);
 	
-	return cellV->adcHiByte; // for testing
+	
 }
 
 //! Interrupt occurs when ADC conversion is complete
