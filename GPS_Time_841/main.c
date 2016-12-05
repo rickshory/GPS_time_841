@@ -3,6 +3,9 @@
  *
  * Created: 4/30/2016 8:42:04 PM
  * Author : Rick Shory
+ 
+ ck cell voltage
+ 1.262V, may be causing GPS quick shutdown
  */ 
 
 #define F_CPU 8000000UL
@@ -13,7 +16,7 @@
 #define GPS_RX_BUF_LEN 128
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
-#define GPS_RX_TIMEOUT 2550 // 100 ticks = 1 second
+#define GPS_RX_TIMEOUT 255 // 100 ticks = 1 second
 
 #include <avr/io.h>
 #include <util/delay.h>
