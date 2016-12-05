@@ -6,6 +6,7 @@
  
  ck cell voltage
  1.262V, may be causing GPS quick shutdown
+ 1.432V, freshly charged, does not seem to have quick shutdown problem
  */ 
 
 #define F_CPU 8000000UL
