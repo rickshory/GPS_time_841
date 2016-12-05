@@ -155,7 +155,7 @@ volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
-volatile int16_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
+volatile int16_t gpsTimeoutCountdown = GPS_RX_TIMEOUT; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
