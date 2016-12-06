@@ -17,7 +17,7 @@
 #define GPS_RX_BUF_LEN 128
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
-#define GPS_RX_TIMEOUT 255 // 100 ticks = 1 second
+#define GPS_RX_TIMEOUT 100 // 100 ticks = 1 second
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -159,7 +159,7 @@ volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
 //volatile uint8_t iTmp;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
-volatile int16_t gpsTimeoutCountdown = GPS_RX_TIMEOUT; // track if serial Rx from GPS
+volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
@@ -913,7 +913,7 @@ ISR(TIMER1_COMPA_vect) {
 	// set to occur at 100Hz
 	char n;
 	int16_t t;
-	int16_t g;
+	uint8_t g;
 	if (--ToggleCountdown <= 0) {
 		PORTA ^= (1<<LED); // toggle bit 2, pilot light blinkey
 		ToggleCountdown = TOGGLE_INTERVAL;
@@ -922,7 +922,7 @@ ISR(TIMER1_COMPA_vect) {
 	cli(); // don't let other interrupts interfere
 	g = gpsTimeoutCountdown;
 	if (g) gpsTimeoutCountdown = --g;
-	if (gpsTimeoutCountdown <= 0) {
+	if (!gpsTimeoutCountdown) {
 		Prog_status.gps_serial_Received = 0;
 	}
 	sei();
