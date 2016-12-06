@@ -407,7 +407,7 @@ int main(void)
 			}
 			if (!(stateFlags.isGPSPowerOn)) { // enable power to GPS
 				PORTB |= (1<<GPS_PWR); // raise the pin that enables power to the GPS module
-				stayRoused(1000); // rouse for 10 seconds for power to settle
+				stayRoused(200); // rouse for 2 seconds for power to settle
 				GpsOnAttempts = 0; // define and set to zero
 				stateFlags.isGPSPowerOn = 1; // flag that power is now on
 			} else { // by either bypassing or entering above block, GPS power is now on
