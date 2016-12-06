@@ -929,8 +929,8 @@ ISR(TIMER1_COMPA_vect) {
 	sei();
 	
 	// for testing, show what's currently in output buffer
-	// do this every 0.5 seconds
-	if ((rouseCountdown % 50) == 0) {
+	// do this every 2.5 seconds
+	if ((rouseCountdown % 250) == 0) {
 		stateFlags.isTimeForDebugDiagnostics = 1;
 	}
 	
