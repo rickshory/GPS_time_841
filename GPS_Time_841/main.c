@@ -968,8 +968,8 @@ ISR(USART0_RX_vect) {
 	}
 	
 	cli(); // don't let other interrupts interfere
-	Prog_status.gps_serial_Received = 1; // flag that serial is being received
 	gpsTimeoutCountdown = GPS_RX_TIMEOUT; // while Rx normally, will always refresh within this interval
+	Prog_status.gps_serial_Received = 1; // flag that serial is being received
 	sei();
 	gps_receiveByte = UDR0; // read character
 	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
