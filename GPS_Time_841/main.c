@@ -374,12 +374,12 @@ int main(void)
 		if (machineState == TurningOnGPS) { // overwrite the space between date and time with GpsOnAttempts
 			cmdOut[11] = '0' + GpsOnAttempts;
 		}
-		/*
+		
 		if (machineState == ParsingNMEA) { // get some diagnostics, to see if parse is progressing
 			// snapshot of which field the loop is working on
 			cmdOut[20] = '0' + fldCounter; // drop the number in the space before the timezone
 		}
-		*/
+		
 		if (stateFlags.isTimeForDebugDiagnostics) {
 			sendDebugSignal();
 		}		
