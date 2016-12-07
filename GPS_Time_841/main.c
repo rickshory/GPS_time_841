@@ -5,9 +5,10 @@
  * Author : Rick Shory
  
  ck cell voltage
- 1.262, may be causing GPS quick shutdown
- 1.402 problem
- 1.432, freshly charged, does not seem to have quick shutdown problem
+ 1.23 OK
+ 1.262 OK
+ 1.402 OK
+ 1.432, freshly charged, OK
  */ 
 
 #define F_CPU 8000000UL
@@ -36,6 +37,7 @@ typedef struct {
 #define CIRCBUF_DEF(x,y) char x##_space[y]; circBuf_t x = { x##_space,0,0,y}
 
 // function prototypes
+//uint8_t readCellVoltage (volatile adcData *cellV); // why error with this here?
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
@@ -372,6 +374,10 @@ int main(void)
 		if (machineState == TurningOnGPS) { // overwrite the space between date and time with GpsOnAttempts
 			cmdOut[11] = '0' + GpsOnAttempts;
 		}
+		if (machineState == ParsingNMEA) { // get some diagnostics, to see if parse is progressing
+			// snapshot of which field the loop is working on
+			cmdOut[20] = '0' + fldCounter; // drop the number in the space before the timezone
+		}
 		if (stateFlags.isTimeForDebugDiagnostics) {
 			sendDebugSignal();
 		}		
@@ -600,6 +606,7 @@ write zero to ADEN to avoid excessive power consumption
 
  REFS0
 */
+uint8_t readCellVoltage (volatile adcData *cellV);
 uint8_t readCellVoltage (volatile adcData *cellV) {
 	uint8_t ct;
 	unsigned long sumOf8Readings = 0;
@@ -870,6 +877,7 @@ void sendDebugSignal(void) {
 	if (Prog_status.gps_serial_Received) {
 		*cmdOutPtr = 'r';
 	}
+
 	while (*cmdOutPtr != '\0') {
 		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
 			;
