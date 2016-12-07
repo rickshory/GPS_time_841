@@ -972,16 +972,16 @@ ISR(USART0_RX_vect) {
 	// FE0: Frame Error
 	// DOR0: Data OverRun
 	// UPE0: USART Parity Error
-	/*
+	
 	if (UCSR0A & ((1<<FE0) | (1<<DOR0) | (1<<UPE0))) { // bad "character" received
 		gps_receiveByte = UDR0; // read register to clear it
 		return;
 	}
-	*/
-	cli(); // don't let other interrupts interfere
+
+//	cli(); // don't let other interrupts interfere
 	gpsTimeoutCountdown = GPS_RX_TIMEOUT; // while Rx normally, will always refresh within this interval
 	Prog_status.gps_serial_Received = 1; // flag that serial is being received
-	sei();
+//	sei();
 	gps_receiveByte = UDR0; // read character
 	if (stateFlags.setTimeCommandSent) // valid timestamp captured and sent
 		return; // don't capture anything any more
