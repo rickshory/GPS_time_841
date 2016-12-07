@@ -19,7 +19,7 @@
 #define GPS_RX_BUF_LEN 128
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
-#define GPS_RX_TIMEOUT 120 // 100 ticks = 1 second
+#define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -374,10 +374,12 @@ int main(void)
 		if (machineState == TurningOnGPS) { // overwrite the space between date and time with GpsOnAttempts
 			cmdOut[11] = '0' + GpsOnAttempts;
 		}
+		/*
 		if (machineState == ParsingNMEA) { // get some diagnostics, to see if parse is progressing
 			// snapshot of which field the loop is working on
 			cmdOut[20] = '0' + fldCounter; // drop the number in the space before the timezone
 		}
+		*/
 		if (stateFlags.isTimeForDebugDiagnostics) {
 			sendDebugSignal();
 		}		
