@@ -850,6 +850,8 @@ int parseNMEA(void) {
 //						case magVar: // don't need this field, or any after
 //							NMEA_status.use_nmea = 0; // skip characters till next '$' found
 //							break;
+						default:
+							break;
 					} // end of switch (fldCounter)
 				} // regular data character
 			} // not end of line
