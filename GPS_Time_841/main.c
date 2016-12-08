@@ -369,6 +369,7 @@ int main(void)
 
     while (1) {
 		nextIteration:
+		/*
 		// drop in diagnostics, overwrite the dash between year and month with the machine state
 		cmdOut[5] = '0' + machineState;
 		if (machineState == TurningOnGPS) { // overwrite the space between date and time with GpsOnAttempts
@@ -379,7 +380,7 @@ int main(void)
 			// snapshot of which field the loop is working on
 			cmdOut[20] = '0' + fldCounter; // drop the number in the space before the timezone
 		}
-		
+		*/
 		if (stateFlags.isTimeForDebugDiagnostics) {
 			sendDebugSignal();
 		}		
