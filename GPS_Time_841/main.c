@@ -571,7 +571,8 @@ int main(void)
 /*
 Steps to do an Analog-to-Digital conversion:
 
-use internal 2.2V reference voltage, disconnected from the AREF pin
+cell voltage to be measured is only about 1.4V max, so
+use internal 2.2V reference voltage, not connected to the AREF pin
 specify by writing to the REFS[2:0] bits in ADMUXB
 
 Set the ADPS bits in ADCSRA to choose ADC prescaling, to provide an input clock frequency between
@@ -621,11 +622,42 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	// enable the ADC
 	ADCSRA |= (1<<ADEN);
 	// select ADC voltage reference, 2.2V internal reference, disconnected from external AREF pin
-	// ADMUXB
+	// REFS[2:0] = 010, these are ADMUXB[7:5]
+	// Gain Selection, set the gain for differential inputs, not relevant, use gain of 1
+	// GSEL[1:0] = 00, these are ADMUXB[1:0]
+	ADMUXB = 0b01000000;
+	// After switching to internal voltage reference the ADC requires a settling time of 1ms before
+	// measurements are stable. Conversions starting before this may not be reliable. The ADC must 
+	// be enabled during the settling time.
+	
 	// select ADC0 as the input; PA0, pin 13 in SOIC package, pin 5 in QFN package
-	// ADMUXA
+	// single ended, (voltage ref to ground)
+	// MUX[5:0] = 000000, these are ADMUXA[5:0]
+	ADMUXA = 0b00000000;
+	
 	// set ADC prescaler, ADPS bits in ADCSRA
-	// ADCSRA
+	// ADPS[2:0], these are ADCSRA[2:0]
+	// using 8MHz CPU clock:
+	//	desired ADC clock	calculated division factor
+	// min	  50kHz				160
+	// max	 200kHz				 40
+	// so, a division factor of either 64 (125kHz) or 128 (62.5kHz) would be OK
+	// using 128, ADPS[2:0] = 111
+	//ADCSRA |= ((1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
+	// using 64, ADPS[2:0] = 110
+	ADCSRA |= ((1<<ADPS2) | (1<<ADPS1));
+	
+	// Digital Input Disable
+	// ADC[7:0], these are DIDR0[7:0]
+	// set ADCnD bit to reduce power consumption; ADC0D is for ADC0, the ADC we are using here
+	DIDR0 |= (1<<ADC0D);
+	
+	// ADC Left Adjust Result
+	// ADLAR is ADCSRB[3], leave as default 0 to right-adjust
+	// ADC Auto Trigger Source
+	// ADTS[2:0], these are ADCSRB[2:0]; leave as default 000 for Free Running mode
+	// this is ignored if ADC Start Conversion
+	// ADCSRB = 0b00000000;
 	
 	// Enter ADC Noise Reduction mode (or Idle mode). The ADC will start a conversion once the CPU has been halted.
 	// Do ADC work before enabling any other interrupts. Other ISRs may wake the CPU first and so the
@@ -642,36 +674,10 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 }
 
 /*
-	// Set prescale by ADPS bits in ADCSRA.
-	// using 8MHz CPU clock:
-	//	desired ADC clock	calculated division factor
-	// min	  50kHz				160
-	// max	 200kHz				 40
-	// so, a division factor of either 64 (125kHz) or 128 (62.5kHz) would be OK
-	// using 128
-	//ADCSRA |= ((1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
-	// using 64
-	ADCSRA |= ((1<<ADPS2) | (1<<ADPS1));
+
 	//
 	// The prescaler starts counting from the moment the ADC is switched on by setting the ADEN bit
 
-	// REFS1	REFS0	Voltage Reference Selection
-	//  0		 0		 AREF, Internal Vref turned off
-	//	0		 1		 AVCC with external capacitor at AREF pin
-	//	1		 0		 Internal 1.1V Voltage Reference with external capacitor at AREF pin
-	//	1		 1		 Internal 2.56V Voltage Reference with external capacitor at AREF pin
-	// for testing, use AVCC as the reference voltage
-//	ADMUX |= (1<<REFS0);
-	//use 2.56v internal ref
-	ADMUX |= (1<<REFS1) | (1<<REFS0);
-	
-//	ADMUX = 0b00000001 | (1<<REFS1) | (1<<REFS0); // ADC1 single-ended; use 2.56v internal ref
-	// use ADC1, which is port A bit 1. On 40-dip = physical pin 39; on 44-TQFP = physical pin 36
-	ADMUX |= 0b00000001;
-	
-//	ADMUX |= (1<<ADLAR); // for testing, Left-adjust the result, only use high 8 bits
-	
-	
 	// DIDR0 – Digital Input Disable Register 0
 	DIDR0 |= (1<<ADC1D); // disable digital input buffer on this pin to save power
 	
