@@ -202,6 +202,9 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
+	uint8_t intTmp1 = readCellVoltage(&cellVoltageReading); // dummy reading at this point, to force compile for testing
+	/*			previousADCCellVoltageReading = cellVoltageReading.adcWholeWord;
+	intTmp1 = readCellVoltage(&cellVoltageReading);*/
 	machineState = Initializing;
 	uint16_t GpsTxUbrr, UcRxUbrr;
 
@@ -629,11 +632,18 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	// After switching to internal voltage reference the ADC requires a settling time of 1ms before
 	// measurements are stable. Conversions starting before this may not be reliable. The ADC must 
 	// be enabled during the settling time.
+	for(uint16_t i=(F_CPU/1000); i; i-- )
+		; // loop should elapse well over 1ms
 	
 	// select ADC0 as the input; PA0, pin 13 in SOIC package, pin 5 in QFN package
 	// single ended, (voltage ref to ground)
 	// MUX[5:0] = 000000, these are ADMUXA[5:0]
 	ADMUXA = 0b00000000;
+	
+	// Digital Input Disable
+	// ADC[7:0], these are DIDR0[7:0]
+	// set ADCnD bit to reduce power consumption; ADC0D is for ADC0, the ADC we are using here
+	DIDR0 |= (1<<ADC0D);
 	
 	// set ADC prescaler, ADPS bits in ADCSRA
 	// ADPS[2:0], these are ADCSRA[2:0]
@@ -646,17 +656,17 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	//ADCSRA |= ((1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0));
 	// using 64, ADPS[2:0] = 110
 	ADCSRA |= ((1<<ADPS2) | (1<<ADPS1));
-	
-	// Digital Input Disable
-	// ADC[7:0], these are DIDR0[7:0]
-	// set ADCnD bit to reduce power consumption; ADC0D is for ADC0, the ADC we are using here
-	DIDR0 |= (1<<ADC0D);
+	// enable ADC Conversion Complete Interrupt
+	// ADIE (ADC Interrupt Enable, ADCSRA[3])
+	ADCSRA |= (1<<ADIE);
+
 	
 	// ADC Left Adjust Result
 	// ADLAR is ADCSRB[3], leave as default 0 to right-adjust
 	// ADC Auto Trigger Source
 	// ADTS[2:0], these are ADCSRB[2:0]; leave as default 000 for Free Running mode
-	// this is ignored if ADC Start Conversion
+	// ADTS[2:0] are ignored if ADATE (ADCSRA[5]) is clear; it is left as default clear in this usage
+	// ADC will be done as a Single Conversion by setting ADSC (ADC Start Conversion, ADCSRA[6])
 	// ADCSRB = 0b00000000;
 	
 	// Enter ADC Noise Reduction mode (or Idle mode). The ADC will start a conversion once the CPU has been halted.
@@ -670,16 +680,13 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	ADCSRA &= ~(1<<ADEN);
 	// done, set the ADC power reduction bit
 	PRR |= (1<<PRADC);
-	return cellV->adcHiByte; // for testing
+	return (uint8_t)(cellV->adcHiByte); // for testing
 }
 
 /*
 
 	//
 	// The prescaler starts counting from the moment the ADC is switched on by setting the ADEN bit
-
-	// DIDR0 – Digital Input Disable Register 0
-	DIDR0 |= (1<<ADC1D); // disable digital input buffer on this pin to save power
 	
 	// (sec/125*10^3 cycles) * (25 cycles/conversion) * 64 conversions = 12.8ms 
 //	for (ct = 0; ct < 64; ct++) { 
@@ -715,21 +722,7 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	
 		while (ADCSRA & (1<<ADSC))
 			; // should break out of this when conversion is complete, regardless of Idle mode
-	*/
-	/*
-	Auto Triggering is
-	enabled by setting the ADC Auto Trigger Enable bit, ADATE in ADCSRA. The trigger source is
-	selected by setting the ADC Trigger Select bits, ADTS in ADCSRB (see description of the ADTS
-	bits for a list of the trigger sources). When a positive edge occurs on the selected trigger signal,
-	the ADC prescaler is reset and a conversion is started. This provides a method of starting conversions
-	at fixed intervals. If the trigger signal still is set when the conversion completes, a new
-	conversion will not be started. If another positive edge occurs on the trigger signal during conversion,
-	the edge will be ignored. Note that an Interrupt Flag will be set even if the specific
-	interrupt is disabled or the global interrupt enable bit in SREG is cleared. A conversion can thus
-	be triggered without causing an interrupt. However, the Interrupt Flag must be cleared in order to
-	trigger a new conversion at the next interrupt event.
-	*/
-	/*
+
 		cellV->adcLoByte = ADCL;
 		cellV->adcHiByte = ADCH;
 		sumOf8Readings += cellV->adcWholeWord;
@@ -743,15 +736,7 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	ADCSRA &= ~(1<<ADEN);
 	// done, clear SE to prevent SLEEP by accident
 	SMCR &= ~(1<<SE);
-	
-	
-}
-
-//! Interrupt occurs when ADC conversion is complete
-ISR(ADC_vect)
-{
-	// disable ADC conversion complete interrupt
-	ADCSRA &= ~(1<<ADIE);
+		
 }
 
 */
@@ -926,6 +911,13 @@ int circBufGet(circBuf_t *c, char *d) {
 	c->tail = nx;
 	sei();
 	return 0;
+}
+
+// Interrupt occurs when ADC conversion is complete
+ISR(ADC_vect)
+{
+	// disable ADC conversion complete interrupt
+	ADCSRA &= ~(1<<ADIE);
 }
 
 ISR(TIMER1_COMPA_vect) {
