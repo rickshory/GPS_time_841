@@ -37,7 +37,7 @@ typedef struct {
 #define CIRCBUF_DEF(x,y) char x##_space[y]; circBuf_t x = { x##_space,0,0,y}
 
 // function prototypes
-//uint8_t readCellVoltage (volatile adcData *cellV); // why error with this here?
+uint8_t readCellVoltage(void); // don't need any parameters, always fills global cellVoltageReading
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
@@ -202,9 +202,9 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
-	uint8_t intTmp1 = readCellVoltage(&cellVoltageReading); // dummy reading at this point, to force compile for testing
+	uint8_t intTmp1 = readCellVoltage(); // dummy reading at this point, to force compile for testing
 	/*			previousADCCellVoltageReading = cellVoltageReading.adcWholeWord;
-	intTmp1 = readCellVoltage(&cellVoltageReading);*/
+	*/
 	machineState = Initializing;
 	uint16_t GpsTxUbrr, UcRxUbrr;
 
@@ -613,13 +613,13 @@ write zero to ADEN to avoid excessive power consumption
 
  REFS0
 */
-uint8_t readCellVoltage (volatile adcData *cellV);
-uint8_t readCellVoltage (volatile adcData *cellV) {
+
+uint8_t readCellVoltage() {
 	uint8_t ct;
 	unsigned long sumOf8Readings = 0;
 	// set initial conditions; conversion-complete interrupt will fill in these values
-	cellV->adcWholeWord = 0;
-	cellV->adcMultiplier = 0; // currently, flags that we have no conversion yet
+	cellVoltageReading.adcWholeWord = 0;
+	cellVoltageReading.adcMultiplier = 0; // currently, flags that we have no conversion yet
 	// clear the ADC power reduction bit
 	PRR &= ~(1<<PRADC);
 	// enable the ADC
@@ -680,7 +680,7 @@ uint8_t readCellVoltage (volatile adcData *cellV) {
 	ADCSRA &= ~(1<<ADEN);
 	// done, set the ADC power reduction bit
 	PRR |= (1<<PRADC);
-	return (uint8_t)(cellV->adcHiByte); // for testing
+	return cellVoltageReading.adcHiByte; // for testing
 }
 
 /*
