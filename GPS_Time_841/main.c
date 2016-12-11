@@ -153,7 +153,6 @@ typedef struct {
 			uint16_t adcWholeWord;
 		};
 	};
-	uint16_t adcMultiplier;
 } adcData;
 
 volatile adcData cellVoltageReading;
@@ -616,10 +615,9 @@ write zero to ADEN to avoid excessive power consumption
 
 uint8_t readCellVoltage() {
 	uint8_t ct;
-	unsigned long sumOf8Readings = 0;
+	uint16_t sumOfReadings = 0;
 	// set initial conditions; conversion-complete interrupt will fill in these values
 	cellVoltageReading.adcWholeWord = 0;
-	cellVoltageReading.adcMultiplier = 0; // currently, flags that we have no conversion yet
 	// clear the ADC power reduction bit
 	PRR &= ~(1<<PRADC);
 	// enable the ADC
