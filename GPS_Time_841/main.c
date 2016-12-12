@@ -668,10 +668,39 @@ uint8_t readCellVoltage() {
 	// ADCSRB = 0b00000000;
 	
 	// Enter ADC Noise Reduction mode (or Idle mode). The ADC will start a conversion once the CPU has been halted.
-	// Do ADC work before enabling any other interrupts. Other ISRs may wake the CPU first and so the
+	// Do ADC work before enabling any other interrupts. Otherwise, other ISRs may wake the CPU first and so the
 	// ADC interrupt would complete with the CPU in active mode, higher noise.
 	// When the ADC conversion completes, the ADC interrupt will wake up the CPU and
 	// execute the ADC Conversion Complete interrupt routine.
+	
+	// get a number or readings, and average them
+	// 26 ADC cycles for 1st conversion when ADEN 1st set, 15 cycles after that
+	// for consistency, switch ADEN off/on for every conversion
+	// (sec/125*10^3 cycles) * (26 cycles/conversion) = 208us
+	// 64 conversions = 13.3ms
+	// 32 conversions = 6.66ms
+	// 16 conversions = 3.33ms
+	// 8 conversions = 1.66ms	
+	for (uint8_t ct=0; ct<8; ct++) {
+		
+		// temporarily disable ADC, to start fresh
+		ADCSRA &= ~(1<<ADEN);
+		// enable ADC conversion complete interrupt
+		ADCSRA |= (1<<ADIE);
+		// clear interrupt flag
+		ADCSRA |= (1<<ADIF); // writing a 1 clears this flag
+		// global enable interrupts
+		sei();
+		// enable ADC
+		ADCSRA |= (1<<ADEN);
+		// initiate a single conversion
+		ADCSRA |= (1<<ADSC);
+		// enter CPU Idle mode
+				
+	}
+	
+	
+	
 	
 	
 	// done, disable the ADC
@@ -685,12 +714,10 @@ uint8_t readCellVoltage() {
 
 	//
 	// The prescaler starts counting from the moment the ADC is switched on by setting the ADEN bit
-	
-	// (sec/125*10^3 cycles) * (25 cycles/conversion) * 64 conversions = 12.8ms 
+
 //	for (ct = 0; ct < 64; ct++) { 
 	for (ct = 0; ct < 16; ct++) { 
-		// enable ADC conversion complete interrupt
-		ADCSRA |= (1<<ADIE);
+		
 		// clear interrupt flag
 		ADCSRA |= (1<<ADIF); // writing a 1 clears this flag
 		// global enable interrupts
