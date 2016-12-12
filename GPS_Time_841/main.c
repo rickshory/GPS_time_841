@@ -658,7 +658,6 @@ uint8_t readCellVoltage() {
 	// ADIE (ADC Interrupt Enable, ADCSRA[3])
 	ADCSRA |= (1<<ADIE);
 
-	
 	// ADC Left Adjust Result
 	// ADLAR is ADCSRB[3], leave as default 0 to right-adjust
 	// ADC Auto Trigger Source
@@ -695,19 +694,42 @@ uint8_t readCellVoltage() {
 		ADCSRA |= (1<<ADEN);
 		// initiate a single conversion
 		ADCSRA |= (1<<ADSC);
-		// enter CPU Idle mode
+		// enter CPU Noise Reduction mode
+		// SE bit in MCUCR must be written to logic one and a SLEEP
+		//  instruction must be executed.
+		// Sleep mode select
+		// SM[1:0], these are MCUCR[4:3]; set to 01 for ADC Noise Reduction mode
+		// MCUCR[1:0] are ICSR[1:0], Interrupt Sense Control, not relevant, can be 00
+		// set Noise Reduction sleep mode, wait to set SE, don't care about any other bits
+		MCUCR = 0b00001000;
+		// set SE (sleep enable)
+		MCUCR |= (1<<SE);
+		// go intoPower-down mode SLEEP
+		asm("sleep");
+		
+		// ADSC bit stays high as long as the conversion is in progress and will be 
+		// cleared by hardware when the conversion is completed.
+		while (ADCSRA & (1<<ADSC))
+			; // should break out of this when conversion is complete
+		// the ADC interrupt that occurred only disabled the ADC interrupt, so
+		//  no more will occur until explicitly re-enabled
+		
+		// get the reading
+		cellVoltageReading.adcLoByte = ADCL;
+		cellVoltageReading.adcHiByte = ADCH;
+		sumOfReadings += cellVoltageReading.adcWholeWord;
 				
-	}
+	} // finished getting all the readings we are going to average
 	
-	
-	
-	
+	uint16_t avg = sumOfReadings/8;
 	
 	// done, disable the ADC
 	ADCSRA &= ~(1<<ADEN);
 	// done, set the ADC power reduction bit
 	PRR |= (1<<PRADC);
-	return cellVoltageReading.adcHiByte; // for testing
+	// done, clear SE to prevent SLEEP by accident
+	MCUCR &= ~(1<<SE);
+	return (uint8_t)avg; // for testing
 }
 
 /*
@@ -715,38 +737,12 @@ uint8_t readCellVoltage() {
 	//
 	// The prescaler starts counting from the moment the ADC is switched on by setting the ADEN bit
 
-//	for (ct = 0; ct < 64; ct++) { 
-	for (ct = 0; ct < 16; ct++) { 
+
+	
+
+
+	
 		
-		// clear interrupt flag
-		ADCSRA |= (1<<ADIF); // writing a 1 clears this flag
-		// global enable interrupts
-		sei();
-		// enable ADC
-		ADCSRA |= (1<<ADEN);	
-		// initiate a single conversion
-		ADCSRA |= (1<<ADSC);
-		// enter CPU Idle mode
-
-	// SE bit in SMCR must be written to logic one and a SLEEP
-	//  instruction must be executed.
-
-	// When the SM2..0 bits are written to 001, the SLEEP instruction makes the MCU enter ADC
-	// Noise Reduction mode
-	
-		// SM2 = bit 3
-		// SM1 = bit 2
-		// SM0 = bit 1
-		// SE = bit 0
-		// don't set SE yet
-		SMCR = 0b00000010;
-		// set SE (sleep enable)
-		SMCR |= (1<<SE);
-		// go into Noise Reduction mode SLEEP
-		asm("sleep");
-	
-		while (ADCSRA & (1<<ADSC))
-			; // should break out of this when conversion is complete, regardless of Idle mode
 
 		cellV->adcLoByte = ADCL;
 		cellV->adcHiByte = ADCH;
