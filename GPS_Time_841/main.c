@@ -631,7 +631,7 @@ uint8_t readCellVoltage() {
 	// measurements are stable. Conversions starting before this may not be reliable. The ADC must 
 	// be enabled during the settling time.
 	for(uint16_t i=(F_CPU/1000); i; i-- )
-		; // loop should elapse well over 1ms
+		asm ("nop"); // loop should elapse well over 1ms
 	
 	// select ADC0 as the input; PA0, pin 13 in SOIC package, pin 5 in QFN package
 	// single ended, (voltage ref to ground)
