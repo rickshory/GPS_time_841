@@ -722,8 +722,8 @@ uint16_t readCellVoltage() {
 				
 	} // finished getting all the readings we are going to average
 	
-	uint16_t avg = sumOfReadings/(2^ADC_SAMPLES_TO_AVERAGE_PWR_2);
-	//uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2)
+	//uint16_t avg = sumOfReadings/(2^ADC_SAMPLES_TO_AVERAGE_PWR_2);
+	uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
 	
 	// done, disable the ADC
 	ADCSRA &= ~(1<<ADEN);
