@@ -20,6 +20,7 @@
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
+#define ADC_SAMPLES_TO_AVERAGE_PWR_2 3 // e.g. 3 means 2^3=8, 5 means 2^5=32
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -37,7 +38,7 @@ typedef struct {
 #define CIRCBUF_DEF(x,y) char x##_space[y]; circBuf_t x = { x##_space,0,0,y}
 
 // function prototypes
-uint8_t readCellVoltage(void); // don't need any parameters, always fills global cellVoltageReading
+uint16_t readCellVoltage(void); // don't need any parameters, always fills global cellVoltageReading
 void stayRoused(uint16_t dSec);
 void endRouse(void);
 void sendSetTimeSignal(void);
@@ -201,7 +202,7 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
-	uint8_t intTmp1 = readCellVoltage(); // dummy reading at this point, to force compile for testing
+	uint16_t lngTmp1 = readCellVoltage(); // dummy reading at this point, to force compile for testing
 	/*			previousADCCellVoltageReading = cellVoltageReading.adcWholeWord;
 	*/
 	machineState = Initializing;
@@ -613,7 +614,7 @@ write zero to ADEN to avoid excessive power consumption
  REFS0
 */
 
-uint8_t readCellVoltage() {
+uint16_t readCellVoltage() {
 	uint8_t ct;
 	uint16_t sumOfReadings = 0;
 	// set initial conditions; conversion-complete interrupt will fill in these values
@@ -680,7 +681,7 @@ uint8_t readCellVoltage() {
 	// 32 conversions = 6.66ms
 	// 16 conversions = 3.33ms
 	// 8 conversions = 1.66ms	
-	for (uint8_t ct=0; ct<8; ct++) {
+	for (uint8_t ct=0; ct<(2^ADC_SAMPLES_TO_AVERAGE_PWR_2); ct++) {
 		
 		// temporarily disable ADC, to start fresh
 		ADCSRA &= ~(1<<ADEN);
@@ -721,7 +722,8 @@ uint8_t readCellVoltage() {
 				
 	} // finished getting all the readings we are going to average
 	
-	uint16_t avg = sumOfReadings/8;
+	uint16_t avg = sumOfReadings/(2^ADC_SAMPLES_TO_AVERAGE_PWR_2);
+	//uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2)
 	
 	// done, disable the ADC
 	ADCSRA &= ~(1<<ADEN);
@@ -729,7 +731,7 @@ uint8_t readCellVoltage() {
 	PRR |= (1<<PRADC);
 	// done, clear SE to prevent SLEEP by accident
 	MCUCR &= ~(1<<SE);
-	return (uint8_t)avg; // for testing
+	return avg; // for testing
 }
 
 /*
