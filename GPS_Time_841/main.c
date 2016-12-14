@@ -572,46 +572,12 @@ int main(void)
 }
 
 /*
-Steps to do an Analog-to-Digital conversion:
-
-cell voltage to be measured is only about 1.4V max, so
-use internal 2.2V reference voltage, not connected to the AREF pin
-specify by writing to the REFS[2:0] bits in ADMUXB
-
-Set the ADPS bits in ADCSRA to choose ADC prescaling, to provide an input clock frequency between
- 50kHz and 200kHz to the successive approximation circuitry.
-
-When ADATE or ADEN is cleared ADMUX can be safely updated.
-select the analog input channel by writing to the MUX bits in ADMUX
-
-enable ADC by setting the ADC Enable bit, ADEN in ADCSRA
-clear the conversion complete interrupt flag
-
-Select trigger source by setting the ADC Trigger Select bits, ADTS in ADCSRB (see description of the ADTS
-bits for a list of the trigger sources).
-Enable Auto Triggering by setting the ADC Auto Trigger Enable bit, ADATE in ADCSRA.
-
-If Auto Triggering is enabled, single conversions can be started by writing ADSC in ADCSRA to
-one. ADSC can also be used to determine if a conversion is in progress. The ADSC bit will be
-read as one during a conversion, independently of how the conversion was started.
-
 enable ADC
 do not initiate conversion yet
 select Single Conversion Mode
 enable ADC conversion complete interrupt
-enter ADC Noise Reduction mode (or Idle mode)
+enter ADC Noise Reduction mode
 The ADC will start a conversion once the CPU has been halted.
-
-the ADC interrupt will wake up the CPU and execute the ADC Conversion Complete interrupt routine.
- in ISR:
-read ADCL first, then ADCH, to ensure that the content of the Data Registers belongs to the same conversion
-
-Vin = (ADC * Vref) / 1024
-
-before entering other sleep modes than Idle mode and ADC Noise Reduction mode,
-write zero to ADEN to avoid excessive power consumption
-
- REFS0
 */
 
 uint16_t readCellVoltage() {
@@ -623,10 +589,12 @@ uint16_t readCellVoltage() {
 	PRR &= ~(1<<PRADC);
 	// enable the ADC
 	ADCSRA |= (1<<ADEN);
+	// cell voltage to be measured is only about 1.4V max, so
 	// select ADC voltage reference, 2.2V internal reference, disconnected from external AREF pin
 	// REFS[2:0] = 010, these are ADMUXB[7:5]
 	// Gain Selection, set the gain for differential inputs, not relevant, use gain of 1
 	// GSEL[1:0] = 00, these are ADMUXB[1:0]
+//	ADMUXB |= (1<<REFS1);
 	ADMUXB = 0b01000000;
 	// After switching to internal voltage reference the ADC requires a settling time of 1ms before
 	// measurements are stable. Conversions starting before this may not be reliable. The ADC must 
@@ -687,7 +655,7 @@ uint16_t readCellVoltage() {
 		ADCSRA &= ~(1<<ADEN);
 		// enable ADC conversion complete interrupt
 		ADCSRA |= (1<<ADIE);
-		// clear interrupt flag
+		// clear the conversion complete interrupt flag
 		ADCSRA |= (1<<ADIF); // writing a 1 clears this flag
 		// global enable interrupts
 		sei();
@@ -707,6 +675,7 @@ uint16_t readCellVoltage() {
 		MCUCR |= (1<<SE);
 		// go intoPower-down mode SLEEP
 		asm("sleep");
+		// the ADC interrupt will wake up the CPU and execute the ADC Conversion Complete ISR
 		
 		// ADSC bit stays high as long as the conversion is in progress and will be 
 		// cleared by hardware when the conversion is completed.
@@ -716,8 +685,9 @@ uint16_t readCellVoltage() {
 		//  no more will occur until explicitly re-enabled
 		
 		// get the reading
-		cellVoltageReading.adcLoByte = ADCL;
-		cellVoltageReading.adcHiByte = ADCH;
+		cellVoltageReading.adcLoByte = ADCL; // read ADCL first, then ADCH, to ensure that the content
+		cellVoltageReading.adcHiByte = ADCH; // of the Data Registers belongs to the same conversion
+		// Vin = (ADC * Vref) / 1024
 		sumOfReadings += cellVoltageReading.adcWholeWord;
 				
 	} // finished getting all the readings we are going to average
@@ -733,36 +703,6 @@ uint16_t readCellVoltage() {
 	MCUCR &= ~(1<<SE);
 	return avg; // for testing
 }
-
-/*
-
-	//
-	// The prescaler starts counting from the moment the ADC is switched on by setting the ADEN bit
-
-
-	
-
-
-	
-		
-
-		cellV->adcLoByte = ADCL;
-		cellV->adcHiByte = ADCH;
-		sumOf8Readings += cellV->adcWholeWord;
-	}
-	
-//	cellV->adcWholeWord = (sumOf8Readings / 64);
-	cellV->adcWholeWord = (sumOf8Readings / 16);
-	cellV->adcMultiplier = 1; // currently, flags a completed conversion
-	
-	// disable ADC to save power in sleep modes
-	ADCSRA &= ~(1<<ADEN);
-	// done, clear SE to prevent SLEEP by accident
-	SMCR &= ~(1<<SE);
-		
-}
-
-*/
 
 void stayRoused(uint16_t dSec)
 {
