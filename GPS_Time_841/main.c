@@ -158,8 +158,7 @@ typedef struct {
 
 volatile adcData cellVoltageReading;
 volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
-//volatile uint8_t stateFlags = 0;
-//volatile uint8_t iTmp;
+volatile uint16_t cellVoltage = 0;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
@@ -202,7 +201,7 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
-	uint16_t lngTmp1 = readCellVoltage(); // dummy reading at this point, to force compile for testing
+	cellVoltage = readCellVoltage(); // dummy reading at this point, to force compile for testing
 	/*			previousADCCellVoltageReading = cellVoltageReading.adcWholeWord;
 	*/
 	machineState = Initializing;
@@ -369,6 +368,21 @@ int main(void)
 	
 	machineState = WaitingForMain; // waiting to Rx serial from main uC, prevents run-on if not in-system
 	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
+	
+	// test of reading cell voltage
+	// first time, debug message is binary picture of cell voltage reading from ADC
+	uint8_t b;
+	for (b=0; b<16; b++) {
+		cmdOut[23-b] = '0' +  (1 & (cellVoltage>>b));
+	}
+	cmdOut[23-b] = 'b';
+	b++;
+	cmdOut[23-b] = '0';
+	b++;
+	cmdOut[23-b] = ' ';
+	b++;
+	cmdOut[23-b] = ' ';
+	sendDebugSignal();
 
     while (1) {
 		nextIteration:
@@ -581,7 +595,6 @@ The ADC will start a conversion once the CPU has been halted.
 */
 
 uint16_t readCellVoltage() {
-	uint8_t ct;
 	uint16_t sumOfReadings = 0;
 	// set initial conditions; conversion-complete interrupt will fill in these values
 	cellVoltageReading.adcWholeWord = 0;
