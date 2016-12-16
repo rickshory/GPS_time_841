@@ -20,7 +20,8 @@
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
-#define ADC_SAMPLES_TO_AVERAGE_PWR_2 1 // e.g. 3 means 2^3=8, 5 means 2^5=32
+#define ADC_SAMPLES_TO_AVERAGE_PWR_2 2 // e.g. 3 means 2^3=8, 5 means 2^5=32
+#define ADC_SAMPLES_TO_AVERAGE  (2 ^ ADC_SAMPLES_TO_AVERAGE_PWR_2)
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -372,6 +373,7 @@ int main(void)
 	// test of reading cell voltage
 	// first time, debug message is binary picture of cell voltage reading from ADC
 	uint8_t b;
+	
 	for (b=0; b<16; b++) {
 		cmdOut[23-b] = '0' +  (1 & (cellVoltage>>b));
 	}
@@ -383,6 +385,9 @@ int main(void)
 	b++;
 	cmdOut[23-b] = ' ';
 	sendDebugSignal();
+	
+	// while testing ADC, cancel rest of program
+	machineState = ShuttingDown;
 
     while (1) {
 		nextIteration:
@@ -662,7 +667,7 @@ uint16_t readCellVoltage() {
 	// 32 conversions = 6.66ms
 	// 16 conversions = 3.33ms
 	// 8 conversions = 1.66ms	
-	for (uint8_t ct=0; ct<(2^ADC_SAMPLES_TO_AVERAGE_PWR_2); ct++) {
+	for (uint8_t ct=0; ct<(ADC_SAMPLES_TO_AVERAGE); ct++) {
 		
 		// temporarily disable ADC, to start fresh
 		ADCSRA &= ~(1<<ADEN);
