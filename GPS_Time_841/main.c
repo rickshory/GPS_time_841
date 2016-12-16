@@ -20,8 +20,8 @@
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
-#define ADC_SAMPLES_TO_AVERAGE_PWR_2 2 // e.g. 3 means 2^3=8, 5 means 2^5=32
-#define ADC_SAMPLES_TO_AVERAGE  (2 ^ ADC_SAMPLES_TO_AVERAGE_PWR_2)
+#define ADC_SAMPLES_TO_AVERAGE_PWR_2 7 // e.g. 3 means 2^3=8, 5 means 2^5=32
+#define ADC_SAMPLES_TO_AVERAGE (2 ^ ADC_SAMPLES_TO_AVERAGE_PWR_2)
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -667,7 +667,8 @@ uint16_t readCellVoltage() {
 	// 32 conversions = 6.66ms
 	// 16 conversions = 3.33ms
 	// 8 conversions = 1.66ms	
-	for (uint8_t ct=0; ct<(ADC_SAMPLES_TO_AVERAGE); ct++) {
+	uint8_t samplesToAverage = (1<<ADC_SAMPLES_TO_AVERAGE_PWR_2);
+	for (uint8_t ct=0; ct<samplesToAverage; ct++) {
 		
 		// temporarily disable ADC, to start fresh
 		ADCSRA &= ~(1<<ADEN);
@@ -714,7 +715,9 @@ uint16_t readCellVoltage() {
 	} // finished getting all the readings we are going to average
 	
 	//uint16_t avg = sumOfReadings/(2^ADC_SAMPLES_TO_AVERAGE_PWR_2);
-	uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
+//	uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
+	// while testing ADC, skip shift division
+	uint16_t avg = sumOfReadings;
 	
 	// done, disable the ADC
 	ADCSRA &= ~(1<<ADEN);
