@@ -20,7 +20,7 @@
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
-#define ADC_SAMPLES_TO_AVERAGE_PWR_2 0 // e.g. 3 means 2^3=8, 5 means 2^5=32
+#define ADC_SAMPLES_TO_AVERAGE_PWR_2 1 // e.g. 3 means 2^3=8, 5 means 2^5=32
 
 #include <avr/io.h>
 #include <util/delay.h>
