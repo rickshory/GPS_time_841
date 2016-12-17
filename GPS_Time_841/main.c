@@ -20,7 +20,7 @@
 #define MAIN_RX_BUF_LEN 32
 #define MAIN_TX_BUF_LEN 64
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
-#define ADC_SAMPLES_TO_AVERAGE_PWR_2 0 // e.g. 3 means 2^3=8, 5 means 2^5=32
+#define ADC_SAMPLES_TO_AVERAGE_PWR_2 6 // e.g. 3 means 2^3=8, 5 means 2^5=32
 // works for 0 to 6 but >=7 overflows 16 bit cumulative value
 
 #include <avr/io.h>
@@ -713,11 +713,8 @@ uint16_t readCellVoltage() {
 		sumOfReadings += cellVoltageReading.adcWholeWord;
 				
 	} // finished getting all the readings we are going to average
-	
-	//uint16_t avg = sumOfReadings/(2^ADC_SAMPLES_TO_AVERAGE_PWR_2);
-//	uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
-	// while testing ADC, skip shift division
-	uint16_t avg = sumOfReadings;
+	// shift right to divide by 2 to the power
+	uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
 	
 	// done, disable the ADC
 	ADCSRA &= ~(1<<ADEN);
@@ -1002,7 +999,10 @@ ISR(USART1_RX_vect) {
 	} else {
 		cmd_capture_ctr++; // count that we got a good character
 	}
+	// we do not currently use main_receive_byte, but only load it from UDR1 to reset the UART
 	main_receive_byte = UDR1; // clear any error flags, and buffer
+	(void)main_receive_byte; // avoid compiler warning: variable 'main_receive_byte' set but not used [-Wunused-but-set-variable]
+	// compiler warning clobbers all other build diagnostics
 	if (cmd_capture_ctr >= 3) {
 		Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
 		UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
