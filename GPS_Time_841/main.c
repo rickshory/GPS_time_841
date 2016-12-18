@@ -22,6 +22,7 @@
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
 #define ADC_SAMPLES_TO_AVERAGE_PWR_2 6 // e.g. 3 means 2^3=8, 5 means 2^5=32
 // works for 0 to 6 but >=7 overflows 16 bit cumulative value
+#define CELL_V_OK_FOR_GPS 530 // determine this empirically
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -121,6 +122,7 @@ static volatile union cmd_status // main Rx/Tx command status bit flags
 enum machStates
 {
 	Asleep = 0, // default on chip reset
+	CheckingCellVoltage, // verify there is enough power to do the job
 	Initializing,  // setting up timer, usarts, etc.
 	WaitingForMain, // waiting to Rx serial from main uC, prevents run-on if not in-system
 	TurningOnGPS, // attempting to power up and wake the GPS module
@@ -202,8 +204,17 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
-	cellVoltage = readCellVoltage(); // dummy reading at this point, to force compile for testing
+	machineState = CheckingCellVoltage;
+	cellVoltage = readCellVoltage();
 	/*			previousADCCellVoltageReading = cellVoltageReading.adcWholeWord;
+	*/
+	/*
+	if (cellVoltage < CELL_V_OK_FOR_GPS) { // still need to determine this empirically
+		machineState = ShuttingDown;
+		// maybe use clunky goto, to skip initialization
+	} else {
+		
+	}
 	*/
 	machineState = Initializing;
 	uint16_t GpsTxUbrr, UcRxUbrr;
@@ -387,7 +398,7 @@ int main(void)
 	sendDebugSignal();
 	
 	// while testing ADC, cancel rest of program
-	machineState = ShuttingDown;
+//	machineState = ShuttingDown;
 
     while (1) {
 		nextIteration:
@@ -403,10 +414,12 @@ int main(void)
 			cmdOut[20] = '0' + fldCounter; // drop the number in the space before the timezone
 		}
 		*/
+
+		/* while testing cell voltage, disable diagnostics
 		if (stateFlags.isTimeForDebugDiagnostics) {
 			sendDebugSignal();
-		}		
-		if (machineState == WaitingForMain) { 
+		}
+		*/		if (machineState == WaitingForMain) { 
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
 			if (!Prog_status.wait_for_main_Rx_started) {
 				stayRoused(3000); // stay roused for 30 seconds
@@ -711,10 +724,7 @@ uint16_t readCellVoltage() {
 		// rearranges to:
 		// Vin = (ADC * Vref) / 1024
 		sumOfReadings += cellVoltageReading.adcWholeWord;
-				
 	} // finished getting all the readings we are going to average
-	// shift right to divide by 2 to the power
-	uint16_t avg = (sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
 	
 	// done, disable the ADC
 	ADCSRA &= ~(1<<ADEN);
@@ -722,7 +732,8 @@ uint16_t readCellVoltage() {
 	PRR |= (1<<PRADC);
 	// done, clear SE to prevent SLEEP by accident
 	MCUCR &= ~(1<<SE);
-	return avg; // for testing
+	// shift right to divide by 2-to-the-power and create the average
+	return (uint16_t)(sumOfReadings >> ADC_SAMPLES_TO_AVERAGE_PWR_2);
 }
 
 void stayRoused(uint16_t dSec)
