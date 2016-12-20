@@ -420,9 +420,7 @@ int main(void)
 		*/		if (machineState == WaitingForMain) { 
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
 			if (!Prog_status.wait_for_main_Rx_started) {
-//				stayRoused(3000); // stay roused for 30 seconds
-				// for cell voltage testing, make this more brief
-				stayRoused(1500); // stay roused for 15 seconds
+				stayRoused(3000); // stay roused for 30 seconds
 				Prog_status.wait_for_main_Rx_started = 1;
 			}
 			
@@ -494,9 +492,7 @@ int main(void)
 			// try for 3 minutes = 180 sec = 18000 ticks 10ms each
 			// can do within uint16_t max 65535
 			if (!Prog_status.parse_timeout_started) {
-//				stayRoused(18000); // stay roused for 3 minutes
-				// for cell voltage testing, make this more brief
-				stayRoused(6000); // stay roused for 1 minute
+				stayRoused(18000); // stay roused for 3 minutes
 				Prog_status.parse_timeout_started = 1;
 			}
 
