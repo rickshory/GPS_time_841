@@ -3,12 +3,6 @@
  *
  * Created: 4/30/2016 8:42:04 PM
  * Author : Rick Shory
- 
- ck cell voltage
- 1.23 OK
- 1.262 OK
- 1.402 OK
- 1.432, freshly charged, OK
  */ 
 
 #define F_CPU 8000000UL
@@ -22,7 +16,8 @@
 #define GPS_RX_TIMEOUT 150 // 100 ticks = 1 second
 #define ADC_SAMPLES_TO_AVERAGE_PWR_2 6 // e.g. 3 means 2^3=8, 5 means 2^5=32
 // works for 0 to 6 but >=7 overflows 16 bit cumulative value
-#define CELL_V_OK_FOR_GPS 572 // determine this empirically
+#define CELL_V_OK_FOR_GPS 570 // determined empirically
+// this level, 1.2246V, should always have enough power to complete the cycle
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -161,7 +156,6 @@ typedef struct {
 
 volatile adcData cellVoltageReading;
 volatile uint8_t machineState = Asleep, GpsOnAttempts = 0;
-volatile uint16_t cellVoltage = 0;
 volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blinker
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
@@ -205,17 +199,10 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 int main(void)
 {
 	machineState = CheckingCellVoltage;
-	cellVoltage = readCellVoltage();
-	/*			previousADCCellVoltageReading = cellVoltageReading.adcWholeWord;
-	*/
-	/*
-	if (cellVoltage < CELL_V_OK_FOR_GPS) { // still need to determine this empirically
+	if (readCellVoltage() < CELL_V_OK_FOR_GPS) { // determined empirically
 		machineState = ShuttingDown;
-		// maybe use clunky goto, to skip initialization
-	} else {
-		
+		goto skipInitialization;
 	}
-	*/
 	machineState = Initializing;
 	uint16_t GpsTxUbrr, UcRxUbrr;
 
@@ -379,45 +366,11 @@ int main(void)
 	machineState = WaitingForMain; // waiting to Rx serial from main uC, prevents run-on if not in-system
 	// in-system can be emulated by sending any serial at 9600 baud into this chip's Rx1
 	
-	// test of reading cell voltage
-	// first time, debug message is binary picture of cell voltage reading from ADC
-	uint8_t b;
-	
-	for (b=0; b<16; b++) {
-		cmdOut[23-b] = '0' +  (1 & (cellVoltage>>b));
-	}
-	cmdOut[23-b] = 'b';
-	b++;
-	cmdOut[23-b] = '0';
-	b++;
-	cmdOut[23-b] = ' ';
-	b++;
-	cmdOut[23-b] = ' ';
-	sendDebugSignal();
-	
-	// while testing ADC, cancel rest of program
-//	machineState = ShuttingDown;
-
+	skipInitialization:
     while (1) {
 		nextIteration:
-		/*
-		// drop in diagnostics, overwrite the dash between year and month with the machine state
-		cmdOut[5] = '0' + machineState;
-		if (machineState == TurningOnGPS) { // overwrite the space between date and time with GpsOnAttempts
-			cmdOut[11] = '0' + GpsOnAttempts;
-		}
 		
-		if (machineState == ParsingNMEA) { // get some diagnostics, to see if parse is progressing
-			// snapshot of which field the loop is working on
-			cmdOut[20] = '0' + fldCounter; // drop the number in the space before the timezone
-		}
-		*/
-
-		/* while testing cell voltage, disable diagnostics
-		if (stateFlags.isTimeForDebugDiagnostics) {
-			sendDebugSignal();
-		}
-		*/		if (machineState == WaitingForMain) { 
+		if (machineState == WaitingForMain) { 
 			// wait 30 seconds to Rx serial from main board; prevents run-on if not connected to anything
 			if (!Prog_status.wait_for_main_Rx_started) {
 				stayRoused(3000); // stay roused for 30 seconds
@@ -478,11 +431,6 @@ int main(void)
 		} // end of (machineState == TurningOnGPS)
 
 		if (machineState == ParsingNMEA) { 
-			// following will be the usual exit point
-			// calls a function to send the set-time signal back to the main uC
-			// that function, if successful, will tie things up and end Rouse mode
-			// which will allow this uC to shut down till woken again by Reset
-
 			if (!(Prog_status.gps_serial_Received)) { // GPS has failed
 				PORTB &= ~(1<<GPS_PWR); // turn off physical power to GPS module
 				machineState = ShuttingDown; // begin shut down
