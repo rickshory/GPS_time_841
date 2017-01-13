@@ -44,6 +44,7 @@ int parseNMEA(void);
 void restoreCmdDefault(void);
 int circBufPut(circBuf_t *c, char d);
 int circBufGet(circBuf_t *c, char *d);
+void delay_ms(uint16_t x);
 
 
 /*
@@ -198,6 +199,16 @@ CIRCBUF_DEF(main_recBuf, MAIN_RX_BUF_LEN);
 
 int main(void)
 {
+	// even if battery voltage is too low, or unconnected
+	// give 5ms pilot-light flash, to let user know something happened
+	// set up LED, which will blink during normal operation
+	DDRA |= (1<<LED); // set pin as output
+	PORTA &= ~(1<<LED); // initially force low
+	asm volatile ("nop"); // let settle
+	PORTA |= (1<<LED); // turn on
+	delay_ms(5); // wait
+	PORTA &= ~(1<<LED); // turn off
+	
 	machineState = CheckingCellVoltage;
 	if (readCellVoltage() < CELL_V_OK_FOR_GPS) { // determined empirically
 		machineState = ShuttingDown;
@@ -206,9 +217,6 @@ int main(void)
 	machineState = Initializing;
 	uint16_t GpsTxUbrr, UcRxUbrr;
 
-	// set up to blink an LED
-	DDRA |= (1<<LED); // set pin as output
-	PORTA &= ~(1<<LED); // initially force low
 	
 	// set up GPS control lines as outputs
 	DDRB |= (1<<PULSE_GPS); // set pin as output
@@ -964,6 +972,17 @@ ISR(USART1_RX_vect) {
 		Prog_status.main_serial_Received = 1; // flag that serial is received from the main uC
 		UCSR1B = (1<<TXEN1); // enable only Tx; should flush the receive buffer and clear RXC1 flag, allowing Tx1
 	}	
+}
+
+void delay_ms(uint16_t x) {
+	uint8_t y, z;
+	for ( ; x > 0 ; x--){
+		for ( y = 0 ; y < 90 ; y++){
+			for ( z = 0 ; z < 6 ; z++){
+				asm volatile ("nop");
+			}
+		}
+	}
 }
 
 void restoreCmdDefault(void) {
