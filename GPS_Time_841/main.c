@@ -163,7 +163,8 @@ volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
-static volatile char *cmdOutPtr;
+static volatile char cmdClear[6] = "\n\r\n\r\0"; // empty command, to clear the main uC buffer
+static volatile char *cmdOutPtr, *cmdClearPtr;
 static volatile int nmea_capture_counter;
 static volatile int cmd_capture_ctr = 0;
 static volatile int fldCounter;
@@ -804,6 +805,14 @@ void sendSetTimeSignal(void) {
 	// this will be the usual tie-up point
 	// transmit the set-time signal back to the main uC
 	// then set flag(s) to signal this uC to shut down
+	
+	cmdClearPtr = cmdClear; // assure the main uC receive-command buffer is clear
+	while (*cmdClearPtr != '\0') {
+		while (!(UCSR1A & (1<<UDRE1))) { // Tx data register UDRn ignores any write unless UDREn=1
+			;
+		}
+		UDR1 = *cmdClearPtr++; // put the character to be transmitted in the Tx buffer
+	}	
 	
 	cmdOut[0]='t'; // set this command character only now
 	cmdOutPtr = cmdOut;	
