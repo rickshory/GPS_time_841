@@ -784,12 +784,14 @@ int parseNMEA(void) {
 							break;
 							
 						case isNorthOrSouth:
+							if (posCounter == 0) cmdOut[28] = ch; // 'N' or 'S'
 							break;
 							
 						case curLon:
 							break;
 							
-						case isEastOrWest: 
+						case isEastOrWest:
+							if (posCounter == 0) cmdOut[40] = ch; // 'E' or 'W'
 							break;
 							
 						case dateStamp: // "ddmmyy"; rearrange and copy, in between '-' positions
