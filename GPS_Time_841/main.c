@@ -781,6 +781,7 @@ int parseNMEA(void) {
 							break;
 							
 						case curLat:
+							if (posCounter >= 0) cmdOut[29 + posCounter] = ch; // copy characters
 							break;
 							
 						case isNorthOrSouth:
@@ -788,6 +789,7 @@ int parseNMEA(void) {
 							break;
 							
 						case curLon:
+							if (posCounter >= 0) cmdOut[41 + posCounter] = ch; // copy characters
 							break;
 							
 						case isEastOrWest:
