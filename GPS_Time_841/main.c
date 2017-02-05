@@ -161,13 +161,12 @@ volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blin
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
-static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
-static volatile char lat[13] = "0000.000000\0"; // latitude, raw from NMEA is whole degrees (2 digits, 
-						// padded with leading zeros) concatenated with decimal minutes
-static volatile char ns[2] = " \0"; // 'N' or 'S' latitude
-static volatile char lon[14] = "00000.000000\0"; // longitude, raw from NMEA is whole degrees (3 digits,
-						// padded with leading zeros) concatenated with decimal minutes
-static volatile char ew[2] = " \0"; // 'E' or 'W' longitude
+static volatile char cmdOut[MAIN_TX_BUF_LEN] = 
+	"x2016-03-19 20:30:01 -08\n\r\n\r 0000.000000 00000.000000\n\r\n\r\0"; // default, for testing
+// latitude specifier is character 'N' or 'S'
+// latitude, raw from NMEA is whole degrees (2 digits, padded with leading zeros) concatenated with decimal minutes
+// longitude specifier is character 'E' or 'W'
+// longitude, raw from NMEA is whole degrees (3 digits, padded with leading zeros) concatenated with decimal minutes
 static volatile char cmdClear[6] = "\n\r\n\r\0"; // empty command, to clear the main uC buffer
 static volatile char *cmdOutPtr, *cmdClearPtr;
 static volatile int nmea_capture_counter;
@@ -1012,7 +1011,8 @@ void delay_ms(uint16_t x) {
 }
 
 void restoreCmdDefault(void) {
-	// restore the output buffer to its default 't2016-03-19 20:30:01 -08'
+	// restore the output buffer to its default "x2016-03-19 20:30:01 -08"
+	// followed by  " 0000.000000 00000.000000"
 	cmdOut[0] = 'x';
 	cmdOut[1] = '2';
 	cmdOut[2] = '0';
@@ -1041,5 +1041,35 @@ void restoreCmdDefault(void) {
 	cmdOut[25] = '\r';
 	cmdOut[26] = '\n';
 	cmdOut[27] = '\r';
-	cmdOut[28] = '\0';
+	
+	cmdOut[28] = ' ';
+	cmdOut[29] = '0';
+	cmdOut[30] = '0';
+	cmdOut[31] = '0';
+	cmdOut[32] = '0';
+	cmdOut[33] = '.';
+	cmdOut[34] = '0';
+	cmdOut[35] = '0';
+	cmdOut[36] = '0';
+	cmdOut[37] = '0';
+	cmdOut[38] = '0';
+	cmdOut[39] = '0';
+	cmdOut[40] = ' ';
+	cmdOut[41] = '0';
+	cmdOut[42] = '0';
+	cmdOut[43] = '0';
+	cmdOut[44] = '0';
+	cmdOut[45] = '0';
+	cmdOut[46] = '.';
+	cmdOut[47] = '0';
+	cmdOut[48] = '0';
+	cmdOut[49] = '0';
+	cmdOut[50] = '0';
+	cmdOut[51] = '0';
+	cmdOut[52] = '0';
+	cmdOut[53] = '\n';
+	cmdOut[54] = '\r';
+	cmdOut[55] = '\n';
+	cmdOut[56] = '\r';
+	cmdOut[57] = '\0';
 }
