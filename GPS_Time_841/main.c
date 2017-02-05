@@ -161,8 +161,13 @@ volatile uint8_t ToggleCountdown = TOGGLE_INTERVAL; // timer for diagnostic blin
 volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sleep
 volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
-
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = "x2016-03-19 20:30:01 -08\n\r\n\r\0"; // default, for testing
+static volatile char lat[13] = "0000.000000\0"; // latitude, raw from NMEA is whole degrees (2 digits, 
+						// padded with leading zeros) concatenated with decimal minutes
+static volatile char ns[2] = " \0"; // 'N' or 'S' latitude
+static volatile char lon[14] = "00000.000000\0"; // longitude, raw from NMEA is whole degrees (3 digits,
+						// padded with leading zeros) concatenated with decimal minutes
+static volatile char ew[2] = " \0"; // 'E' or 'W' longitude
 static volatile char cmdClear[6] = "\n\r\n\r\0"; // empty command, to clear the main uC buffer
 static volatile char *cmdOutPtr, *cmdClearPtr;
 static volatile int nmea_capture_counter;
@@ -732,6 +737,7 @@ int parseNMEA(void) {
 		if (NMEA_status.use_nmea) { // most characters will be thrown away, skipping this loop
 			if (ch == 0x0d) { // terminate at newline
 				NMEA_status.use_nmea = 0; // skip characters till next '$' found
+				// only do the following after a completed line that is flagged as valid
 				if (NMEA_status.valid_data) { // GPS says data valid
 					return 0; // we are done, begin shutdown
 				} // else continue getting characters
@@ -774,8 +780,19 @@ int parseNMEA(void) {
 								}
 							}
 							break;
-//						case curLon: 
-//							break;
+							
+						case curLat:
+							break;
+							
+						case isNorthOrSouth:
+							break;
+							
+						case curLon:
+							break;
+							
+						case isEastOrWest: 
+							break;
+							
 						case dateStamp: // "ddmmyy"; rearrange and copy, in between '-' positions
 										// to make "20yy-mm-dd"
 							NMEA_status.valid_datestamp = 0; // flag off while getting current date
