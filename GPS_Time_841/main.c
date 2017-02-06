@@ -162,7 +162,7 @@ volatile uint16_t rouseCountdown = 0; // timer for keeping system roused from sl
 volatile uint8_t gpsTimeoutCountdown = 0; // track if serial Rx from GPS
 volatile uint16_t Timer1;	// 100Hz decrement timer, available for general use
 static volatile char cmdOut[MAIN_TX_BUF_LEN] = 
-	"x2016-03-19 20:30:01 -08\n\r\n\r 0000.000000 00000.000000\n\r\n\r\0"; // default, for testing
+	"x2016-03-19 20:30:01 -08\n\r\n\r0000.000000 00000.000000 \n\r\n\r\0"; // default, for testing
 // latitude specifier is character 'N' or 'S'
 // latitude, raw from NMEA is whole degrees (2 digits, padded with leading zeros) concatenated with decimal minutes
 // longitude specifier is character 'E' or 'W'
@@ -781,19 +781,19 @@ int parseNMEA(void) {
 							break;
 							
 						case curLat:
-							if (posCounter >= 0) cmdOut[29 + posCounter] = ch; // copy characters
+							if (posCounter >= 0) cmdOut[28 + posCounter] = ch; // copy characters
 							break;
 							
 						case isNorthOrSouth:
-							if (posCounter == 0) cmdOut[28] = ch; // 'N' or 'S'
+							if (posCounter == 0) cmdOut[39] = ch; // 'N' or 'S'
 							break;
 							
 						case curLon:
-							if (posCounter >= 0) cmdOut[41 + posCounter] = ch; // copy characters
+							if (posCounter >= 0) cmdOut[40 + posCounter] = ch; // copy characters
 							break;
 							
 						case isEastOrWest:
-							if (posCounter == 0) cmdOut[40] = ch; // 'E' or 'W'
+							if (posCounter == 0) cmdOut[52] = ch; // 'E' or 'W'
 							break;
 							
 						case dateStamp: // "ddmmyy"; rearrange and copy, in between '-' positions
@@ -1046,31 +1046,31 @@ void restoreCmdDefault(void) {
 	cmdOut[26] = '\n';
 	cmdOut[27] = '\r';
 	
-	cmdOut[28] = ' ';
+	cmdOut[28] = '0';
 	cmdOut[29] = '0';
 	cmdOut[30] = '0';
 	cmdOut[31] = '0';
-	cmdOut[32] = '0';
-	cmdOut[33] = '.';
+	cmdOut[32] = '.';
+	cmdOut[33] = '0';
 	cmdOut[34] = '0';
 	cmdOut[35] = '0';
 	cmdOut[36] = '0';
 	cmdOut[37] = '0';
 	cmdOut[38] = '0';
-	cmdOut[39] = '0';
-	cmdOut[40] = ' ';
+	cmdOut[39] = ' ';
+	cmdOut[40] = '0';
 	cmdOut[41] = '0';
 	cmdOut[42] = '0';
 	cmdOut[43] = '0';
 	cmdOut[44] = '0';
-	cmdOut[45] = '0';
-	cmdOut[46] = '.';
+	cmdOut[45] = '.';
+	cmdOut[46] = '0';
 	cmdOut[47] = '0';
 	cmdOut[48] = '0';
 	cmdOut[49] = '0';
 	cmdOut[50] = '0';
 	cmdOut[51] = '0';
-	cmdOut[52] = '0';
+	cmdOut[52] = ' ';
 	cmdOut[53] = '\n';
 	cmdOut[54] = '\r';
 	cmdOut[55] = '\n';
